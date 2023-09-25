@@ -141,3 +141,19 @@ plot(1:50, weibull_1995(1:50, tpc.weibull[1], tpc.weibull[2], tpc.weibull[3], tp
 #tpc.beta= coef(mod)
 #plot(1:50, beta_2012(1:50, tpc.beta[1], tpc.beta[2], tpc.beta[3], tpc.beta[4], tpc.beta[5]), type="l", ylim=c(0,200))
 
+#------------------------------
+#SHORT TERM TPC
+
+#See VariabilityExtremesMussels
+#https://link.springer.com/article/10.1007/s00442-012-2486-6
+#use M. edulis cleanance rate?
+
+#Bayne et al 1976 data
+#https://www.jstor.org/stable/4215210
+temps= c(13, 17.5, 22, 26)
+assim.fed= c(134.17, 176.06, 192.39, 113.58) #cals /day)
+assim.starv=c(7.58, 9.92, 10.87, 6.42)
+
+tpc.beta= c(198.39, 20.00, 32.00, 4.00, 4.00) 
+
+

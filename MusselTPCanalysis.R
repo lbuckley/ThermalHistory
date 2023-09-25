@@ -124,6 +124,12 @@ temps$length.growth.static= weibull_1995(temps$Temperature...C., tpcs.weibull[1,
 temps$shell.growth.static= weibull_1995(temps$Temperature...C., tpcs.weibull[2,1], tpcs.weibull[2,2], tpcs.weibull[2,3], tpcs.weibull[2,4])
 temps$tissue.growth.static= weibull_1995(temps$Temperature...C., tpcs.weibull[3,1], tpcs.weibull[3,2], tpcs.weibull[3,3], tpcs.weibull[3,4])
 
+##try Bayne data
+#tpc.beta= c(198.39, 20.00, 32.00, 4.00, 4.00) 
+#temps$length.growth.static= beta_2012(temps$Temperature...C., tpc.beta[1], tpc.beta[2], tpc.beta[3], tpc.beta[4], tpc.beta[5])
+#temps$shell.growth.static= temps$length.growth.static
+#temps$tissue.growth.static= temps$length.growth.static
+
 #long term estimates
 lt.est= temps %>%
   group_by(Thermal_mean_levels,Thermal_fluctuation_levels) %>%
