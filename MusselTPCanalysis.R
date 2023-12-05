@@ -142,7 +142,7 @@ lt.est.l<- lt.est %>%
 #plot estimates
 lt.est.fig<- ggplot(data=lt.est.l, aes(x=Thermal_mean_levels, y =value, color=factor(Thermal_fluctuation_levels)))+
   geom_point()+ geom_line(alpha=0.8, lwd=1) +theme_classic(base_size = 20)+
-  ylab("shell length growth (mm/day)")+
+  ylab("estimated growth (mm/day)")+
   xlab("thermal average (°C)")+
   scale_color_brewer("fluctuation", palette = "Dark2")+
   theme(legend.position = c(0.1, 0.2))+
@@ -167,7 +167,7 @@ lt.l<- lt.mean %>%
 #plot observed
 lt.obs.fig<- ggplot(data=lt.l, aes(x=Mean.temperature...C., y =value, color=factor(fluctuation)))+
   geom_point()+ geom_line(alpha=0.8, lwd=1) +theme_classic(base_size = 20)+
-  ylab("performance")+
+  ylab("observed growth (mm/day)")+
   xlab("thermal average (°C)")+
   scale_color_brewer("fluctuation", palette = "Dark2")+
   theme(legend.position = c(0.1, 0.2))+
