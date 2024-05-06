@@ -42,7 +42,7 @@ st$time[st$time<=5]= st$time[st$time<=5] +24
 
 #short term by temp
 st.feed.temp<- ggplot(data=st, aes(x=Temp_C_x, y =WS_feed_J_per_h_S, color=replicate, lty=trial_name))+
-  geom_point()+ theme_classic()+
+  geom_line()+ theme_classic()+
   facet_wrap(~temp.phase, scales="free_x") +theme_classic(base_size = 20)
 
 st.resp.temp<- ggplot(data=st, aes(x=Temp_C_x, y =WS_resp_J_per_h_S, color=replicate, lty=trial_name))+

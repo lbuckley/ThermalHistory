@@ -145,10 +145,12 @@ plot(1:50, weibull_1995(1:50, tpc.weibull[1], tpc.weibull[2], tpc.weibull[3], tp
 #SHORT TERM TPC
 
 #See VariabilityExtremesMussels
-#https://link.springer.com/article/10.1007/s00442-012-2486-6
-#use M. edulis cleanance rate?
+#https://journals.plos.org/climate/article?id=10.1371/journal.pclm.0000226
+#Source: https://link.springer.com/article/10.1007/s00442-012-2486-6
+#use M. edulis clearance rate?
 
 #Bayne et al 1976 data
+#Mytilus californianus
 #https://www.jstor.org/stable/4215210
 temps= c(13, 17.5, 22, 26)
 assim.fed= c(134.17, 176.06, 192.39, 113.58) #cals /day)
@@ -156,4 +158,98 @@ assim.starv=c(7.58, 9.92, 10.87, 6.42)
 
 tpc.beta= c(198.39, 20.00, 32.00, 4.00, 4.00) 
 
+#-------------------------------
+#PLOT FITS
+#length.growth
+plot(1:40, weibull_1995(1:40, tpcs.weibull[1,1], tpcs.weibull[1,2], tpcs.weibull[1,3], tpcs.weibull[1,4]), type="l", ylim=range(0,.4), col="purple")
+#shell.growth
+points(1:40, weibull_1995(1:40, tpcs.weibull[2,1], tpcs.weibull[2,2], tpcs.weibull[2,3], tpcs.weibull[2,4]), type="l", col="blue")
+#tissue growth
+points(1:40, weibull_1995(1:40, tpcs.weibull[3,1], tpcs.weibull[3,2], tpcs.weibull[3,3], tpcs.weibull[3,4]), type="l", col="green")
 
+#Bayne data TPC
+tpc.beta= c(198.39, 20.00, 32.00, 4.00, 4.00) 
+points(1:40, beta_2012(1:40, tpc.beta[1], tpc.beta[2], tpc.beta[3], tpc.beta[4], tpc.beta[5])/500, type="l", col="orange")
+
+#performance function
+perf<- function(Tb) weibull_1995(Tb, tpcs.weibull[2,1], tpcs.weibull[2,2], tpcs.weibull[2,3], tpcs.weibull[2,4])
+
+#short term feeding rate declines from peak to zero 26 to 28C
+#corresponds to shell growth curve?
+
+#STRESS ASSUMPTIONS
+#Shape of cost function
+#Persistence of cost
+#Repair, optimal recovery conditions
+#Repeated exposures
+
+#assume stress beyond Topt
+#accelerates quadratically
+#multiplicative with duration
+tcost<- function(Tb, dur, rep) ifelse(Tb < 26, 0, min(.1 * ((Tb - 26)*dur)^(1+0.1*rep),1))
+tcost.vect<- function(x) ifelse(Tb < 26, 0, min(.05 * ((x[1] - 26)*x[2])^(1+0.1*x[3]),1))
+#need to use with apply statement
+
+#cost decays linearly                                
+decay <- function(time.int) max(1.0 - time.int*0.2)
+
+#------------------------  
+#temperature time series
+# time series Tb, plot
+base <- rnorm(50, 24, 5)
+time <- seq(1:50)
+tp <- as.data.frame(cbind(time=time, temp=base))
+
+#performance
+tp$perf<- perf(tp$temp)
+
+#identify heat stress events
+tp$hs<- ifelse(tp$temp < 26, 0, 1)
+
+#find lengths of heat stress
+rles<- rle(tp$hs)
+rs<- as.data.frame(cbind(lengths=rles$lengths, values=rles$values, inds=cumsum(rles$lengths))) 
+#restrict to heat waves
+rs<- rs[rs$values==1,]
+#heat wave count
+rs$rep<- 1:nrow(rs)
+#add durations and number
+tp$dur<- 0
+tp$dur[rs$inds]<- rs$lengths
+tp$rep<- 0
+tp$rep[rs$inds]<- rs$rep
+
+#cost 
+tp$cost<- apply(cbind(tp$temp, tp$dur, tp$rep), MARGIN=1, FUN=tcost.vect)
+ 
+#decay
+tp$costdec<- 0
+
+inds=which(tp$dur>=1)
+for(i in 1:length(inds)){
+ dec= tp$cost[inds[i]]*c(1.0, 0.8, 0.6, 0.4, 0.2)
+ ncary<- min(5,nrow(tp)-inds[i])
+ tp$costdec[inds[i]:(inds[i]+ncary)]<- tp$costdec[inds[i]:(inds[i]+ncary)]+dec
+}
+
+#net performance
+tp$costdec[tp$costdec>1]<-1
+tp$netperf= tp$perf*(1-tp$costdec)
+
+#to long format
+tp.l<- tp[,c("time","perf","netperf")] %>%
+  gather("metric", "value", 2:3)
+
+#plot
+ggplot(tp.l, aes(time, value, color=metric))+geom_line()
+
+#------------------------ 
+#cost accelerates 
+
+plot(1:40, tcost(1:40, dur=1, rep=1), type="l")
+points(1:40, tcost(1:40, dur=2, rep=1), type="l", col="orange")
+points(1:40, tcost(1:40, dur=4, rep=1), type="l", col="red")
+                                 
+plot(1:40, tcost(1:40, dur=1, rep=1), type="l")
+points(1:40, tcost(1:40, dur=1, rep=2), type="l", col="orange")
+points(1:40, tcost(1:40, dur=4, rep=2), type="l", col="red")
