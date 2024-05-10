@@ -187,7 +187,7 @@ perf<- function(Tb) weibull_1995(Tb, tpcs.weibull[2,1], tpcs.weibull[2,2], tpcs.
 #accelerates quadratically
 #multiplicative with duration
 tcost<- function(Tb, dur, rep) ifelse(Tb < 26, 0, min(.1 * ((Tb - 26)*dur)^(1+0.1*rep),1))
-tcost.vect<- function(x) ifelse(Tb < 26, 0, min(.05 * ((x[1] - 26)*x[2])^(1+0.1*x[3]),1))
+tcost.vect<- function(x) ifelse(x[1] < 26, 0, min(.05 * ((x[1] - 26)*x[2])^(1+0.1*x[3]),1))
 #need to use with apply statement
 
 #cost decays linearly                                
@@ -208,19 +208,28 @@ tp$hs<- ifelse(tp$temp < 26, 0, 1)
 
 #find lengths of heat stress
 rles<- rle(tp$hs)
-rs<- as.data.frame(cbind(lengths=rles$lengths, values=rles$values, inds=cumsum(rles$lengths))) 
+rs<- as.data.frame(cbind(lengths=rles$lengths, values=rles$values, cumsum=cumsum(rles$lengths))) 
+rs$inds<- rs$cumsum -rs$lengths +1
 #restrict to heat waves
 rs<- rs[rs$values==1,]
 #heat wave count
 rs$rep<- 1:nrow(rs)
+#mean heat wave temperature
+rs$tmean<-0
+for(hs.ind in 1:(nrow(rs))){
+  rs$tmean[hs.ind]<- mean(tp$temp[rs$inds[hs.ind]:(rs$inds[hs.ind]+rs$lengths[hs.ind])])
+}
+
 #add durations and number
 tp$dur<- 0
 tp$dur[rs$inds]<- rs$lengths
 tp$rep<- 0
 tp$rep[rs$inds]<- rs$rep
+tp$tmean<- 0
+tp$tmean[rs$inds]<- rs$tmean
 
 #cost 
-tp$cost<- apply(cbind(tp$temp, tp$dur, tp$rep), MARGIN=1, FUN=tcost.vect)
+tp$cost<- apply(cbind(tp$tmean, tp$dur, tp$rep), MARGIN=1, FUN=tcost.vect)
  
 #decay
 tp$costdec<- 0
@@ -246,10 +255,10 @@ ggplot(tp.l, aes(time, value, color=metric))+geom_line()
 #------------------------ 
 #cost accelerates 
 
-plot(1:40, tcost(1:40, dur=1, rep=1), type="l")
-points(1:40, tcost(1:40, dur=2, rep=1), type="l", col="orange")
-points(1:40, tcost(1:40, dur=4, rep=1), type="l", col="red")
+plot(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect), type="l")
+points(1:40, apply(cbind(1:40, 2, 1), MARGIN=1, FUN=tcost.vect), type="l", col="orange")
+points(1:40, apply(cbind(1:40, 4, 1), MARGIN=1, FUN=tcost.vect), type="l", col="red")
                                  
-plot(1:40, tcost(1:40, dur=1, rep=1), type="l")
-points(1:40, tcost(1:40, dur=1, rep=2), type="l", col="orange")
-points(1:40, tcost(1:40, dur=4, rep=2), type="l", col="red")
+plot(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect), type="l")
+points(1:40, apply(cbind(1:40, 1, 2), MARGIN=1, FUN=tcost.vect), type="l", col="orange")
+points(1:40, apply(cbind(1:40, 4, 2), MARGIN=1, FUN=tcost.vect), type="l", col="red")

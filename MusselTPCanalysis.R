@@ -119,17 +119,79 @@ tpc.fig<- ggplot(data=lt[lt$fluctuation==0,], aes(x=Mean.temperature...C., y =Le
 tpcs.weibull
 
 #----------
-#estimate performance
-temps$length.growth.static= weibull_1995(temps$Temperature...C., tpcs.weibull[1,1], tpcs.weibull[1,2], tpcs.weibull[1,3], tpcs.weibull[1,4])
-temps$shell.growth.static= weibull_1995(temps$Temperature...C., tpcs.weibull[2,1], tpcs.weibull[2,2], tpcs.weibull[2,3], tpcs.weibull[2,4])
-temps$tissue.growth.static= weibull_1995(temps$Temperature...C., tpcs.weibull[3,1], tpcs.weibull[3,2], tpcs.weibull[3,3], tpcs.weibull[3,4])
+# #estimate performance
+# temps$length.growth.static= weibull_1995(temps$Temperature...C., tpcs.weibull[1,1], tpcs.weibull[1,2], tpcs.weibull[1,3], tpcs.weibull[1,4])
+# temps$shell.growth.static= weibull_1995(temps$Temperature...C., tpcs.weibull[2,1], tpcs.weibull[2,2], tpcs.weibull[2,3], tpcs.weibull[2,4])
+# temps$tissue.growth.static= weibull_1995(temps$Temperature...C., tpcs.weibull[3,1], tpcs.weibull[3,2], tpcs.weibull[3,3], tpcs.weibull[3,4])
 
 ##try Bayne data
-#tpc.beta= c(198.39, 20.00, 32.00, 4.00, 4.00) 
-#temps$length.growth.static= beta_2012(temps$Temperature...C., tpc.beta[1], tpc.beta[2], tpc.beta[3], tpc.beta[4], tpc.beta[5])
-#temps$shell.growth.static= temps$length.growth.static
-#temps$tissue.growth.static= temps$length.growth.static
+tpc.beta= c(198.39, 20.00, 32.00, 4.00, 4.00) 
+temps$length.growth.static= beta_2012(temps$Temperature...C., tpc.beta[1], tpc.beta[2], tpc.beta[3], tpc.beta[4], tpc.beta[5])
+temps$shell.growth.static= temps$length.growth.static
+temps$tissue.growth.static= temps$length.growth.static
 
+#==========================
+#estimate performance accounting for damage and recovery
+#exponential decline at hot temperatures, short term stress happen around 26
+#recovery time
+
+#assume stress beyond Topt
+#accelerates quadratically
+#multiplicative with duration
+tcost<- function(Tb, dur, rep) ifelse(Tb < 26, 0, min(.1 * ((Tb - 26)*dur)^(1+0.1*rep),1))
+tcost.vect<- function(x) ifelse(x[1] < 26, 0, min(.2 * ((x[1] - 26)*x[2])^(1.2+0.2*x[3]),1))
+
+#cost decays linearly                                
+decay <- function(time.int) max(1.0 - time.int*0.2)
+
+#------------------------  
+temps$temp <- temps$Temperature...C.
+temps$perf= beta_2012(temps$temp, tpc.beta[1], tpc.beta[2], tpc.beta[3], tpc.beta[4], tpc.beta[5])
+
+#identify heat stress events
+temps$hs<- ifelse(temps$temp <= 26, 0, 1)
+
+#find lengths of heat stress
+rles<- rle(temps$hs)
+rs<- as.data.frame(cbind(lengths=rles$lengths, values=rles$values, cumsum=cumsum(rles$lengths))) 
+rs$inds<- rs$cumsum -rs$lengths +1
+
+#restrict to heat waves
+rs<- rs[rs$values==1,]
+#heat wave count
+rs$rep<- 1:nrow(rs)
+#mean heat wave temperature
+rs$tmean<-0
+for(hs.ind in 1:(nrow(rs))){
+  rs$tmean[hs.ind]<- mean(temps$temp[rs$inds[hs.ind]:(rs$inds[hs.ind]+rs$lengths[hs.ind])])
+}
+
+#add durations and number
+temps$dur<- 0
+temps$dur[rs$inds]<- rs$lengths
+temps$rep<- 0
+temps$rep[rs$inds]<- rs$rep
+temps$tmean<- 0
+temps$tmean[rs$inds]<- rs$tmean
+
+#cost 
+temps$cost<- apply(cbind(temps$tmean, temps$dur, temps$rep), MARGIN=1, FUN=tcost.vect)
+
+#decay
+temps$costdec<- 0
+
+inds=which(temps$dur>=1)
+for(i in 1:length(inds)){
+  dec= temps$cost[inds[i]]*c(1.0, 0.8, 0.6, 0.4, 0.2)
+  ncary<- min(5,nrow(temps)-inds[i])
+  temps$costdec[inds[i]:(inds[i]+ncary)]<- temps$costdec[inds[i]:(inds[i]+ncary)]+dec
+}
+
+#net performance
+temps$costdec[temps$costdec>1]<-1
+temps$netempserf= temps$perf*(1-temps$costdec)
+
+#=======================
 #long term estimates
 lt.est= temps %>%
   group_by(Thermal_mean_levels,Thermal_fluctuation_levels) %>%
@@ -148,7 +210,26 @@ lt.est.fig<- ggplot(data=lt.est.l, aes(x=Thermal_mean_levels, y =value, color=fa
   theme(legend.position = c(0.1, 0.2))+
   facet_wrap(.~metric, scale="free_y")
 
-#-----
+#--------
+#plot with cost
+#long term estimates
+lt.est= temps %>%
+  group_by(Thermal_mean_levels,Thermal_fluctuation_levels) %>%
+  summarise(perf=sum(perf), perf.c=sum(netempserf) )
+
+#to long format
+lt.est.l<- lt.est %>%
+  gather("metric", "value", 3:ncol(lt.est))
+
+#plot estimates
+cost.est.fig<- ggplot(data=lt.est.l, aes(x=Thermal_mean_levels, y =value, color=factor(Thermal_fluctuation_levels), lty=metric))+
+  geom_point()+ geom_line(alpha=0.8, lwd=1) +theme_classic(base_size = 20)+
+  ylab("estimated growth (mm/day)")+
+  xlab("thermal average (°C)")+
+  scale_color_brewer("fluctuation", palette = "Dark2")+
+  theme(legend.position = c(0.1, 0.2))
+
+#=====================
 #observed long term plots
 
 #long term
@@ -187,14 +268,7 @@ dev.off()
 # estimate higher at low temps than observed (benefit of warm temperatures)
 # estimate at 24C higher than observed (stress)
 
-#------------------
-#make function for damage exceeding threshold
-#exponential decline at hot temperatures, short term stress happen around 26
-#recovery time
 
-
-
-#estimate performance accounting for damage and recovery
 
 
 
