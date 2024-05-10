@@ -25,6 +25,11 @@ lt= read.csv("./data/Longterm_growth.csv")
 
 #load temperature data
 temps= read.csv("./data/Longterm_temps.csv")
+temps$doy= as.numeric(format(as.POSIXlt(temps$datetime,format="%m/%d/%y %H:%M"),"%j"))
+hour = as.numeric(format(as.POSIXlt(temps$datetime,format="%m/%d/%y %H:%M"),"%H"))
+minute = as.numeric(format(as.POSIXlt(temps$datetime,format="%m/%d/%y %H:%M"),"%M"))
+sec= as.numeric(format(as.POSIXlt(temps$datetime,format="%m/%d/%y %H:%M"),"%S"))
+temps$time= hour + minute/60 + sec/3600
 
 #process time
 doy= as.numeric(format(as.POSIXlt(st$DateTime,format="%Y-%m-%d %H:%M:%S"),"%j"))
@@ -125,10 +130,54 @@ tpcs.weibull
 # temps$tissue.growth.static= weibull_1995(temps$Temperature...C., tpcs.weibull[3,1], tpcs.weibull[3,2], tpcs.weibull[3,3], tpcs.weibull[3,4])
 
 ##try Bayne data
-tpc.beta= c(198.39, 20.00, 32.00, 4.00, 4.00) 
+tpc.beta= c(198.39, 20.00, 32.00, 4.00, 4.00) #2nd parameter is position, 3rd parameter is breadth
 temps$length.growth.static= beta_2012(temps$Temperature...C., tpc.beta[1], tpc.beta[2], tpc.beta[3], tpc.beta[4], tpc.beta[5])
 temps$shell.growth.static= temps$length.growth.static
 temps$tissue.growth.static= temps$length.growth.static
+
+temps$temp <- temps$Temperature...C.
+temps$perf= beta_2012(temps$temp, tpc.beta[1], tpc.beta[2], tpc.beta[3], tpc.beta[4], tpc.beta[5])
+
+#configure TPC
+wp<- c(0.15, 22, .48*10^5, 2.1*10^4)
+plot(10:30, weibull_1995(10:30, wp[1], wp[2], wp[3], wp[4]), type="l")
+points(c(18.5,21, 23.5,26), weibull_1995(c(18.5,21, 23.5,26), wp[1], wp[2], wp[3], wp[4]))
+points(seq(18.5-4, 18.5+4,1), weibull_1995(seq(18.5-4, 18.5+4,1), wp[1], wp[2], wp[3], wp[4]), type="l",col="green")
+points(seq(26-4, 26+4,1), weibull_1995(seq(26-4, 26+4,1), wp[1], wp[2], wp[3], wp[4]), type="l",col="blue")
+
+#a: height; topt:optimal temperature; b:breadth; c:curve shape
+temps$perf= weibull_1995(temps$temp, wp[1], wp[2], wp[3], wp[4])
+
+#----------
+#plot time series
+#temp
+t.plot<- ggplot(data=temps[temps$doy=="300",], aes(x=time, y=temp, color=factor(Thermal_fluctuation_levels), lty=factor(Thermal_mean_levels)))+
+  geom_line() +theme_classic(base_size = 20)+
+  labs(col="fluct", lty="T mean") +theme(legend.position ="none")+
+  facet_wrap(.~factor(Thermal_mean_levels), ncol=4) 
+
+#perf
+p.plot<- ggplot(data=temps[temps$doy=="300",], aes(x=time, y=perf, color=factor(Thermal_fluctuation_levels), lty=factor(Thermal_mean_levels)))+
+  geom_line() +theme_classic(base_size = 20)+
+  labs(col="fluct", lty="T mean") +theme(legend.position ="bottom")+
+  facet_wrap(.~factor(Thermal_mean_levels), ncol=4)
+
+#setwd for figures
+#setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/figures/")
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
+
+pdf("FigTPCs_temps.pdf", height = 10, width = 10)
+t.plot / p.plot
+dev.off()
+
+#long term estimates
+lt.est= temps %>%
+  group_by(Thermal_mean_levels,Thermal_fluctuation_levels) %>%
+  summarise(perf=sum(perf) )
+
+#plot estimates
+ggplot(data=lt.est, aes(x=Thermal_mean_levels, y=perf, color=factor(Thermal_fluctuation_levels)))+
+  geom_point()+ geom_line(alpha=0.8, lwd=1) +theme_classic(base_size = 20)+theme(legend.position ="bottom")
 
 #==========================
 #estimate performance accounting for damage and recovery
@@ -138,18 +187,15 @@ temps$tissue.growth.static= temps$length.growth.static
 #assume stress beyond Topt
 #accelerates quadratically
 #multiplicative with duration
-tcost<- function(Tb, dur, rep) ifelse(Tb < 26, 0, min(.1 * ((Tb - 26)*dur)^(1+0.1*rep),1))
-tcost.vect<- function(x) ifelse(x[1] < 26, 0, min(.2 * ((x[1] - 26)*x[2])^(1.2+0.2*x[3]),1))
+tcost<- function(Tb, dur, rep) ifelse(Tb < 24, 0, min(.1 * ((Tb - 22)*dur)^(1+0.1*rep),1))
+tcost.vect<- function(x) ifelse(x[1] < 24, 0, min(.3 * ((x[1] - 22)*x[2])^(1.2+0.2*x[3]),1))
 
 #cost decays linearly                                
 decay <- function(time.int) max(1.0 - time.int*0.2)
 
 #------------------------  
-temps$temp <- temps$Temperature...C.
-temps$perf= beta_2012(temps$temp, tpc.beta[1], tpc.beta[2], tpc.beta[3], tpc.beta[4], tpc.beta[5])
-
 #identify heat stress events
-temps$hs<- ifelse(temps$temp <= 26, 0, 1)
+temps$hs<- ifelse(temps$temp <= 24, 0, 1)
 
 #find lengths of heat stress
 rles<- rle(temps$hs)
@@ -260,9 +306,9 @@ lt.obs.fig<- ggplot(data=lt.l, aes(x=Mean.temperature...C., y =value, color=fact
 #setwd for figures
 setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/figures/")
 
-pdf("FigTPCs.pdf", height = 8, width = 10)
-lt.obs.fig / lt.est.fig
-dev.off()
+#pdf("FigTPCs.pdf", height = 8, width = 10)
+#lt.obs.fig / lt.est.fig
+#dev.off()
 
 #differences
 # estimate higher at low temps than observed (benefit of warm temperatures)

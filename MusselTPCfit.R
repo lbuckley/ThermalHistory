@@ -169,7 +169,11 @@ points(1:40, weibull_1995(1:40, tpcs.weibull[3,1], tpcs.weibull[3,2], tpcs.weibu
 
 #Bayne data TPC
 tpc.beta= c(198.39, 20.00, 32.00, 4.00, 4.00) 
-points(1:40, beta_2012(1:40, tpc.beta[1], tpc.beta[2], tpc.beta[3], tpc.beta[4], tpc.beta[5])/500, type="l", col="orange")
+points(1:40, beta_2012(1:40, tpc.beta[1], tpc.beta[2], tpc.beta[3], tpc.beta[4], tpc.beta[5])/500, type="l", col="red")
+
+#try TPC shape to fit growth
+wp<- c(0.15, 22, .48*10^5, 2.1*10^4)
+points(10:30, weibull_1995(10:30, wp[1], wp[2], wp[3], wp[4]), type="l")
 
 #performance function
 perf<- function(Tb) weibull_1995(Tb, tpcs.weibull[2,1], tpcs.weibull[2,2], tpcs.weibull[2,3], tpcs.weibull[2,4])
