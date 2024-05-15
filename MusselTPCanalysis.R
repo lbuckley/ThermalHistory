@@ -19,6 +19,11 @@ library(ggplot2)
 #https://doi.pangaea.de/10.1594/PANGAEA.933828
 #https://doi.pangaea.de/10.1594/PANGAEA.897938
 
+#-----------
+#fit tpc
+#run MusselTPCfit.R to fit TPCs
+tpcs.weibull
+
 #load TPC data
 st= read.csv("./data/Shortterm_experiment.csv")
 lt= read.csv("./data/Longterm_growth.csv")
@@ -117,12 +122,6 @@ tpc.fig<- ggplot(data=lt[lt$fluctuation==0,], aes(x=Mean.temperature...C., y =Le
   geom_point()+ 
   theme_classic(base_size = 20)
 
-#-----------
-#fit tpc
-#run MusselTPCfit.R to fit TPCs
-
-tpcs.weibull
-
 #----------
 # #estimate performance
 # temps$length.growth.static= weibull_1995(temps$Temperature...C., tpcs.weibull[1,1], tpcs.weibull[1,2], tpcs.weibull[1,3], tpcs.weibull[1,4])
@@ -177,7 +176,8 @@ lt.est= temps %>%
 
 #plot estimates
 ggplot(data=lt.est, aes(x=Thermal_mean_levels, y=perf, color=factor(Thermal_fluctuation_levels)))+
-  geom_point()+ geom_line(alpha=0.8, lwd=1) +theme_classic(base_size = 20)+theme(legend.position ="bottom")
+  geom_point()+ geom_line(alpha=0.8, lwd=1) +theme_classic(base_size = 20)+theme(legend.position ="bottom")+
+  scale_color_brewer("fluctuation", palette = "Dark2")
 
 #==========================
 #estimate performance accounting for damage and recovery
@@ -187,11 +187,17 @@ ggplot(data=lt.est, aes(x=Thermal_mean_levels, y=perf, color=factor(Thermal_fluc
 #assume stress beyond Topt
 #accelerates quadratically
 #multiplicative with duration
-tcost<- function(Tb, dur, rep) ifelse(Tb < 24, 0, min(.1 * ((Tb - 22)*dur)^(1+0.1*rep),1))
-tcost.vect<- function(x) ifelse(x[1] < 24, 0, min(.3 * ((x[1] - 22)*x[2])^(1.2+0.2*x[3]),1))
+tcost<- function(Tb, dur, rep) ifelse(Tb < 22, 0, min(.1 * ((Tb - 22)*dur)^(1+0.1*rep),1))
+#tcost.vect<- function(x) ifelse(x[1] < 22, 0, min(.03 * ((x[1] - 22)*(1+0.1*x[2]))^(1+0.03*x[3]),1))
+tcost.vect<- function(x) ifelse(x[1] < 22, 0, min(.1 * ((x[1] - 22)*(1+0.2*x[2]))^(1+0.2*x[3]),1))
 
 #cost decays linearly                                
 decay <- function(time.int) max(1.0 - time.int*0.2)
+
+#plot
+plot(1:50, apply(cbind(1:50, 1, 1), MARGIN=1, FUN=tcost.vect), type="l")
+points(1:50, apply(cbind(1:50, 1, 2), MARGIN=1, FUN=tcost.vect), type="l", col="orange")
+points(1:50, apply(cbind(1:50, 1, 4), MARGIN=1, FUN=tcost.vect), type="l", col="red")
 
 #------------------------  
 #identify heat stress events
