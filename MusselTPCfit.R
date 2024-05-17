@@ -194,8 +194,34 @@ tcost<- function(Tb, dur, rep) ifelse(Tb < 26, 0, min(.1 * ((Tb - 26)*dur)^(1+0.
 tcost.vect<- function(x) ifelse(x[1] < 26, 0, min(.05 * ((x[1] - 26)*x[2])^(1+0.1*x[3]),1))
 #need to use with apply statement
 
+#vary parameters
+tcost.vect<- function(x, cost, rep.scale) ifelse(x[1] < 26, 0, min(cost * ((x[1] - 26)*x[2])^(1+rep.scale*x[3]),1))
+
 #cost decays linearly                                
 decay <- function(time.int) max(1.0 - time.int*0.2)
+
+#------------------------ 
+#cost accelerates 
+#vary cost
+plot(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect, cost=0.1, rep.scale=0.1), type="l")
+points(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect, cost=0.05, rep.scale=0.1), type="l", col="green")
+points(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect, cost=0.2, rep.scale=0.1), type="l", col="blue")
+
+#vary rep
+plot(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect, cost=0.1, rep.scale=0.1), type="l")
+points(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect, cost=0.1, rep.scale=0.05), type="l", col="green")
+points(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect, cost=0.1, rep.scale=0.2), type="l", col="blue")
+
+points(1:40, apply(cbind(1:40, 1, 4), MARGIN=1, FUN=tcost.vect, cost=0.1, rep.scale=0.05), type="l", col="green", lty="dashed")
+points(1:40, apply(cbind(1:40, 1, 4), MARGIN=1, FUN=tcost.vect, cost=0.1, rep.scale=0.2), type="l", col="blue", lty="dashed")
+
+#vary cost
+plot(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect, cost=0.1, rep.scale=0.1), type="l")
+points(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect, cost=0.05, rep.scale=0.1), type="l", col="green")
+points(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect, cost=0.2, rep.scale=0.1), type="l", col="blue")
+
+points(1:40, apply(cbind(1:40, 2, 1), MARGIN=1, FUN=tcost.vect, cost=0.05, rep.scale=0.1), type="l", col="green", lty="dashed")
+points(1:40, apply(cbind(1:40, 2, 1), MARGIN=1, FUN=tcost.vect, cost=0.2, rep.scale=0.1), type="l", col="blue", lty="dashed")
 
 #------------------------  
 #temperature time series
@@ -256,13 +282,89 @@ tp.l<- tp[,c("time","perf","netperf")] %>%
 #plot
 ggplot(tp.l, aes(time, value, color=metric))+geom_line()
 
-#------------------------ 
-#cost accelerates 
+#sum performance
+tp.sum= tp.l %>%
+  group_by(metric) %>%
+  summarise(perf=sum(value) )
 
-plot(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect), type="l")
-points(1:40, apply(cbind(1:40, 2, 1), MARGIN=1, FUN=tcost.vect), type="l", col="orange")
-points(1:40, apply(cbind(1:40, 4, 1), MARGIN=1, FUN=tcost.vect), type="l", col="red")
-                                 
-plot(1:40, apply(cbind(1:40, 1, 1), MARGIN=1, FUN=tcost.vect), type="l")
-points(1:40, apply(cbind(1:40, 1, 2), MARGIN=1, FUN=tcost.vect), type="l", col="orange")
-points(1:40, apply(cbind(1:40, 4, 2), MARGIN=1, FUN=tcost.vect), type="l", col="red")
+ggplot(tp.sum, aes(metric, perf))+geom_point()
+
+#--------------------------
+#make function for costs
+
+heat.stress <- function(temps, cost, rep.scale){
+
+#performance
+tperf<- perf(temps)
+tp<- as.data.frame(cbind(temp=temps, perf=tperf))
+
+#identify heat stress events
+tp$hs<- ifelse(tp$temp < 26, 0, 1)
+
+#find lengths of heat stress
+rles<- rle(tp$hs)
+rs<- as.data.frame(cbind(lengths=rles$lengths, values=rles$values, cumsum=cumsum(rles$lengths))) 
+rs$inds<- rs$cumsum -rs$lengths +1
+#restrict to heat waves
+rs<- rs[rs$values==1,]
+#heat wave count
+rs$rep<- 1:nrow(rs)
+#mean heat wave temperature
+rs$tmean<-0
+for(hs.ind in 1:(nrow(rs))){
+  rs$tmean[hs.ind]<- mean(tp$temp[rs$inds[hs.ind]:(rs$inds[hs.ind]+rs$lengths[hs.ind])])
+}
+
+#add durations and number
+tp$dur<- 0
+tp$dur[rs$inds]<- rs$lengths
+tp$rep<- 0
+tp$rep[rs$inds]<- rs$rep
+tp$tmean<- 0
+tp$tmean[rs$inds]<- rs$tmean
+
+#cost 
+tp$cost<- apply(cbind(tp$tmean, tp$dur, tp$rep), MARGIN=1, FUN=tcost.vect, cost=cost, rep.scale=rep.scale)
+
+#decay
+tp$costdec<- 0
+
+inds=which(tp$dur>=1)
+for(i in 1:length(inds)){
+  dec= tp$cost[inds[i]]*c(1.0, 0.8, 0.6, 0.4, 0.2)
+  ncary<- min(5,nrow(tp)-inds[i])
+  tp$costdec[inds[i]:(inds[i]+ncary)]<- tp$costdec[inds[i]:(inds[i]+ncary)]+dec
+}
+
+#net performance
+tp$costdec[tp$costdec>1]<-1
+tp$netperf= tp$perf*(1-tp$costdec)
+
+return(tp)
+} #end function
+
+hs1<- heat.stress(base, cost=0.1, rep.scale=0.1)
+hs1$time= time; hs1$costp= 0.1; hs1$rep.scale= 0.1
+hs2<- heat.stress(base, cost=0.05, rep.scale=0.1)
+hs2$time= time; hs2$costp= 0.05; hs2$rep.scale= 0.1
+hs3<- heat.stress(base, cost=0.2, rep.scale=0.1)
+hs3$time= time; hs3$costp= 0.2; hs3$rep.scale= 0.1
+hs4<- heat.stress(base, cost=0.1, rep.scale=0.05)
+hs4$time= time; hs4$costp= 0.1; hs4$rep.scale= 0.05
+hs5<- heat.stress(base, cost=0.1, rep.scale=0.2)
+hs5$time= time; hs5$costp= 0.1; hs5$rep.scale= 0.2
+
+hs<- rbind(hs1, hs2, hs3, hs4, hs5)
+
+#time series
+ggplot(hs, aes(time, netperf, color=factor(costp), lty=factor(rep.scale)))+geom_line()
+
+#sum performance
+p.sum= hs %>%
+  group_by(costp, rep.scale) %>%
+  summarise(perf=sum(perf), netperf=sum(netperf))
+
+ggplot(p.sum, aes(costp, netperf, color=rep.scale))+geom_point()
+
+#--------------------------
+
