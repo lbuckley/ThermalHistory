@@ -1,3 +1,4 @@
+library(ggplot2)
 
 #Load data
 #Ma et al. 2021. Are extreme high temperatures at low or high latitudes more likely to inhibit the population growth of a globally distributed aphid?
@@ -6,9 +7,23 @@
 #2.1 Temp regimes Fig A2
 #During the day, temperature started to increase at 08:00 h, reached and stayed at a high level (35, 37 or 39 ◦C) from 12:00 to 13:00 h, and then decreased to 22 ◦C by 16:00 h. We kept temperature constant at 22 ◦ C for the rest of the day. Importantly, we set both the daily mean (25.2 ◦C) and minimum (22 ◦C) temperatures as fixed
 
+#construct temperatures
 temps= read.csv("./data/temps_Maetal2021JTB.csv")
 
-#construct temperatures
+#add other hours
+tadd<- cbind(time=c(1:8,16:24),temp=22)
+tadd<- rbind( cbind(rep(39, 17),tadd), cbind(rep(37, 17),tadd), cbind(rep(35, 17),tadd) ) 
+colnames(tadd)[1]<- "treatment"
+temps<- as.data.frame(rbind(temps, tadd))
+temps<- temps[order(temps[,1], temps[,2]),]
+
+days<- rep(1:20, nrow(temps))
+days<- days[order(days)]
+temps.all<- cbind(temps, days)
+temps.all$dt<- temps.all$days+temps.all$time/24
+
+#plot temps
+ggplot(data=temps.all, aes(x=dt, y=temp, color=factor(treatment)))+geom_line()
 
 #--------------
 #2.4 constant temp TPCs
