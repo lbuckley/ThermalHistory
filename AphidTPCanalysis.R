@@ -176,11 +176,28 @@ perf= pout.l %>%
 #Wang and Ma. 2023. Can laboratory‐reared aphid populations reflect the thermal performance of field populations in studies on pest science and climate change biology?  JPS
 #https://doi.org/10.1007/s10340-022-01565-6 
 
-#Ma et al. Daily temperature extremes play an important role in predicting thermal effects. The Journal of Experimental Biology 218 (14), 2289-2296
-#https://doi.org/10.1242/jeb.122127
+#check data formatting
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/")
+adat1<- read.csv("WangMa2023_temp22mean.csv")
 
-#Zhao et al. Night warming on hot days produces novel impacts on development, survival and reproduction in a small arthropod
+#mean metric
+adat1.mean= adat1 %>%
+  group_by(Tmean, Tvar, metric, population) %>%
+  summarise(value= mean(value))
+
+ggplot(data=adat1.mean, aes(x=Tvar, y =value, color=population))+geom_point()+
+  facet_grid(Tmean~metric, scale="free_y")
+
+#Ma et al. 2015. Daily temperature extremes play an important role in predicting thermal effects. The Journal of Experimental Biology 218 (14), 2289-2296
+#https://doi.org/10.1242/jeb.122127, no data in paper
+
+#Zhao et al. 2014. Night warming on hot days produces novel impacts on development, survival and reproduction in a small arthropod
 #Dryad data: http://doi.org/10.5061/dryad.q2070 
+
+adat2.dt<- read.csv("Zhaoetal2014_devtime.csv")
+adat2.p<- read.csv("Zhaoetal2014_AdPerf.csv")
+adat2.lt<- read.csv("Zhaoetal2014_LifeTable.csv")
+adat2.sur<- read.csv("Zhaoetal2014_SurvNymph.csv")
 
 #Zhao et al. The importance of timing of heat events for predicting the dynamics of aphid pest populations. Pest management science, 2019
 
