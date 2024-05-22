@@ -199,6 +199,14 @@ adat2.p<- read.csv("Zhaoetal2014_AdPerf.csv")
 adat2.lt<- read.csv("Zhaoetal2014_LifeTable.csv")
 adat2.sur<- read.csv("Zhaoetal2014_SurvNymph.csv")
 
+names(adat2.dt.l)[1,3,5,7,9]<-"NTmin"
+names(adat2.dt.l)[2,4,5,7,10]<-"dt"
+adat2.dt.l<- rbind( cbind(adat2.dt[,1:2],"1st"), cbind(adat2.dt[,1:2],"2nd"), cbind(adat2.dt[,1:2],"3rd"),
+                    cbind(adat2.dt[,1:2],"4th"),cbind(adat2.dt[,1:2],"Nymph") )
+  
+  
+  
+
 #Zhao et al. The importance of timing of heat events for predicting the dynamics of aphid pest populations. Pest management science, 2019
 
 #Ma CS, Wang L, Zhang W, Rudolf V 2018. Resolving biological impacts of multiple heat waves: interaction of hot and recovery days. Oikos 127:622–33
