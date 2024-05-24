@@ -6,7 +6,7 @@ library(viridisLite)
 library(patchwork)
 library(ggplot2)
 library(deSolve)
-library(sigmoid)
+library(pracma)				# contains sigmoid function
 library(TrenchR)
 
 setwd("/Users/laurenbuckley/ThermalHistory")
@@ -131,8 +131,8 @@ tfun<- function(Time) temps[Time]
 RsigCG = function(Time, State, Pars) {
   with(as.list(c(State, Pars)), {
     T = tfun(Time)   		## temperature determined from sine wave function
-    Rf = Rm2*sigmoid(T,a=0.5,b=Tc)			## calculate equilibrium level of RNA
-    Pf = Pm*sigmoid(R,a=1,b=Rc)				## calculate equilibrium level of protein
+    Rf = Rm2*pracma::sigmoid(T,a=0.5,b=Tc)			## calculate equilibrium level of RNA
+    Pf = Pm*pracma::sigmoid(R,a=1,b=Rc)				## calculate equilibrium level of protein
     Itpc = Rr(T)	## ingestion rate from thermal performance curve
     I = max(Itpc, -1)                         		## size-independent growth version #set minimum but check assumption
     dRdt = -(1/tauR)*(R - Rf)				## decay of RNA level toward Rf
@@ -274,31 +274,53 @@ adat3.tr<- read.csv("Maetal2017/Traits.csv")
 #normal: 28°C and 13°C as the daily maximum and minimum temperatures
 #sine curve to simulate the diurnal fluctuations with a magnitude of 15°C 
 
+hrs<- 0:23
+plot(hrs, diurnal_temp_variation_sine(T_max = 35, T_min = 20, hrs))
+
 #make temperature sequences
-hd= diurnal_temp_variation_sine(T_max = 35, T_min = 20, 0:23)
-nd= diurnal_temp_variation_sine(T_max = 28, T_min = 13, 0:23)
+hdt= c(diurnal_temp_variation_sine(T_max = 35, T_min = 20, 4:23), diurnal_temp_variation_sine(T_max = 35, T_min = 20, 0:3))
+ndt= c(diurnal_temp_variation_sine(T_max = 28, T_min = 13, 4:23), diurnal_temp_variation_sine(T_max = 28, T_min = 13, 0:3))
+#fix transition
+
+x<- temps[1,1:3]
+tz= rep(c(rep(ndt, x[2]), rep(hdt, x[1])), ceiling(40/(x[1]+x[2])))
+plot(1:100, tz[1:100], type="l")
 
 #set up matrix of 30 days of hourly temps
-trt<- expand.grid(hd=1:3, nd=1:3, first= c("n","h"))
+trt<- expand.grid(hd=1:3, nd=1:3, first= 1:2) #first: 1 is n, 2 is h
 temps<- matrix(NA, nrow=nrow(trt), ncol=24*30)
 temps= as.data.frame(cbind(trt, temps))
 
 build.temps<- function(x){
-if(x[3]=="n") ts<- rep(c(rep(nd, x[2]), rep(hd, x[1])), ceiling(40/(x[1]+x[2])))
-if(x[3]=="h") ts<- rep(c(rep(hd, x[1]), rep(nd, x[2])), ceiling(40/(x[1]+x[2])))
+  x[1]<- as.numeric(x[1]); x[2]<- as.numeric(x[2])
+if(x[3]==1) ts<- rep(c(rep(ndt, x[2]), rep(hdt, x[1])), ceiling(40/(x[1]+x[2])))
+if(x[3]==2) ts<- rep(c(rep(hdt, x[1]), rep(ndt, x[2])), ceiling(40/(x[1]+x[2])))
   return(ts[1:720])
 }
-  
-temps[, 3:ncol]
-tz= apply(temps[,1:3], MARGIN=1, FUN=build.temps)
-  
+
+#set up temperatures  
+tz= t(apply(temps[,1:3], MARGIN=1, FUN=build.temps))
+temps[, 4:ncol(temps)]<- tz
+
+#to long format
+temps.l<- melt(temps, id.vars = c("hd","nd","first"), variable.name = "time")
+temps.l$treat<- paste(temps.l$hd, temps.l$nd, sep="_")
+temps.l$treat.nh<- paste(temps.l$hd, temps.l$nd, temps.l$first, sep="_")
+temps.l$time<-as.numeric(temps.l$time)
+
+#plot
+plot(1:100, tz[1,1:100], type="l")
+plot(1:200, temps[1,4:203], type="l")
+ggplot(data=temps.l, aes(x=time, y =value, color=hd, group=treat.nh))+geom_line()+facet_wrap(.~treat)+xlim(0,100)
+
 #----
 #Traits
 #to long format
 adat3.l<- melt(adat3.tr[,c(2:7,26:29)], id.vars = c("Treatment","ID","H_C","CycleDays","ContinueNormalDay","ContinueHotday"), variable.name = "metric")
+adat3.l$ContinueNormalDay <- as.factor(adat3.l$ContinueNormalDay)
 
 #NymphDur, Longevity, Fecundity, BirthDur
-ggplot(data=adat3.l, aes(x=ContinueHotday, y =value, color=factor(ContinueNormalDay), group=factor(ContinueNormalDay)))+
+fig.trait<- ggplot(data=adat3.l, aes(x=ContinueHotday, y =value, color=ContinueNormalDay, group=ContinueNormalDay))+
   geom_smooth(method='lm') +geom_point()+
   facet_grid(H_C~metric, scales="free_y")
 
@@ -333,7 +355,118 @@ ggplot(data=adat3.rep, aes(x=Treatment, y =rep, color=Hot_Cold))+geom_point()
 
 ggplot(data=adat3.rep.m, aes(x=Treatment, y =rep, color=Hot_Cold))+geom_point()
 
-#=====
+#--------------------------
+#estimate performance using constant TPC
+
+#NymphDur, Longevity, Fecundity, BirthDur
+
+perf.fun<- function(ts){
+  #nymphal survival
+  sur1<- mean(as.numeric(Sur(ts)))
+  
+  #Adult longevity (days)
+  long1<- mean(as.numeric(Long(ts)))
+  
+  #Lifetime fecundity (nymphs / adult)
+  fecun1<- mean(as.numeric(Fecun(ts)))
+  
+  #Reproductive rate (nymphs/adult/day)
+  rr1<- as.numeric(Rr(ts))
+  rr1[rr1<0] <- 0
+  rr1<- mean(rr1)
+  
+  #Developmental rate (1/days)
+  dr1<- as.numeric(Dr(ts))
+  dr1[dr1<0] <- 0
+  dr1<- mean(dr1)
+  
+  #Intrinsic rate of increase
+  r1<- as.numeric(Rm(ts))
+  r1[r1<0] <- 0
+  r1<- mean(r1)
+  
+  return( c(sur1, long1, fecun1, rr1, dr1, r1) )
+}
+
+#estimate performance
+tz= t(apply(temps[,4:720], MARGIN=1, FUN=perf.fun))
+tp= cbind(temps[,1:3], tz)
+colnames(tp)[4:9]<- c("sur", "Longevity", "Fecundity", "rr", "dr", "r")
+tp$NymphDur<- 1/tp$dr
+
+#to long format
+tp.l<- melt(tp, id.vars = c("hd","nd","first"), variable.name = "metric")
+
+#plot estimates
+ggplot(data=tp.l, aes(x=hd, y=value, color=factor(nd))) +geom_point()+
+  geom_smooth(method='lm') +geom_point()+
+  facet_grid(metric~first, scales="free_y")
+
+#plot with observed
+tp.l2<- tp.l[tp.l$metric %in% c("Longevity", "Fecundity","NymphDur"),]
+colnames(tp.l2)[1:3]<- c("ContinueHotday","ContinueNormalDay", "H_C")
+tp.l2$H_C<- c("C","H")[tp.l2$H_C]
+tp.l2$H_C<- factor(tp.l2$H_C)
+tp.l2$ContinueNormalDay <- factor(tp.l2$ContinueNormalDay)
+
+#add to plot
+fig.trait2<- fig.trait+  geom_line(data=tp.l2, linetype="dashed", linewidth=1)
+
+#--------------------------
+#adapt Kingsolver Woods model
+
+tfun<- function(Time) temps1[Time]
+
+#estimate performance
+for(treat.k in 1:nrow(temps) ){
+  
+  temps1<- as.numeric(temps[treat.k,4:723])
+  times<- 1:720
+  
+  out2 <- ode(func = RsigCG, y = yini, parms = pars, times = times)
+  
+  #convert to dataframe
+  out2.df <- data.frame(out2)
+  colnames(out2.df)[5:7]<- c("T","I","G") 
+  #summary(out2.df)
+  
+  out2.df$hd<- temps[treat.k,"hd"]
+  out2.df$nd<- temps[treat.k,"nd"]
+  out2.df$first<- temps[treat.k,"first"]
+  
+  if(treat.k==1) pout<- out2.df
+  if(treat.k>1) pout<- rbind(pout, out2.df)
+  
+} #end loop treatments
+
+#---------
+#plot Kingsolver model
+
+#to long format
+pout.l<- melt(pout, id.vars = c("time","T", "hd","nd","first"), variable.name = "metric")
+
+ggplot(data=pout.l[which(pout.l$first==1),], aes(x=time, y =value, color=factor(nd)))+geom_line()+
+  facet_grid(metric~hd, scale="free_y")
+
+#plot Kingsolver model
+#sum performance
+perf= pout.l %>%
+  group_by(hd, nd, first, metric) %>%
+  summarise(value= mean(value))
+colnames(perf)[1:3]<- c("ContinueHotday","ContinueNormalDay", "H_C")
+perf$H_C<- c("C","H")[perf$H_C]
+perf$H_C<- factor(perf$H_C)
+perf$ContinueNormalDay <- factor(perf$ContinueNormalDay)
+
+#equate growth to reproduction
+perf$metric<- as.character(perf$metric)
+perf$metric[which(perf$metric=="G")]<-"Fecundity"
+perf$metric<- as.factor(perf$metric)
+
+#add to plot
+fig.trait3<- fig.trait2+  geom_line(data=perf[which(perf$metric=="Fecundity"),], linetype="dotted", linewidth=2)
+
+#=========================================
 #Zhang W, Chang XQ, Hoffmann AA, Zhang S and Ma CS, Impact of hot events at different developmental stages of a moth: the closer to adult stage, the less reproductive output. Sci Rep 5: 1–9 (2015).
 #Plutella xylostella heat wave experiment
 #No data online
