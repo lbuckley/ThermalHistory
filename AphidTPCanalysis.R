@@ -1,6 +1,16 @@
+library(plyr)
+library(dplyr)
+library(reshape2)
+library(tidyr)
+library(viridisLite)
+library(patchwork)
 library(ggplot2)
+library(deSolve)
+library(sigmoid)
+library(TrenchR)
 
 setwd("/Users/laurenbuckley/ThermalHistory")
+#setwd("/Users/lbuckley/ThermalHistory") #laptop
 
 #Load data
 #Ma et al. 2021. Are extreme high temperatures at low or high latitudes more likely to inhibit the population growth of a globally distributed aphid?
@@ -178,6 +188,8 @@ perf= pout.l %>%
 
 #check data formatting
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/")
+#setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/")
+
 adat1<- read.csv("WangMa2023_temp22mean.csv")
 
 #mean metric
@@ -188,9 +200,11 @@ adat1.mean= adat1 %>%
 ggplot(data=adat1.mean, aes(x=Tvar, y =value, color=population))+geom_point()+
   facet_grid(Tmean~metric, scale="free_y")
 
+#======
 #Ma et al. 2015. Daily temperature extremes play an important role in predicting thermal effects. The Journal of Experimental Biology 218 (14), 2289-2296
 #https://doi.org/10.1242/jeb.122127, no data in paper
 
+#=====
 #Zhao et al. 2014. Night warming on hot days produces novel impacts on development, survival and reproduction in a small arthropod
 #Dryad data: http://doi.org/10.5061/dryad.q2070 
 
@@ -199,20 +213,129 @@ adat2.p<- read.csv("Zhaoetal2014_AdPerf.csv")
 adat2.lt<- read.csv("Zhaoetal2014_LifeTable.csv")
 adat2.sur<- read.csv("Zhaoetal2014_SurvNymph.csv")
 
-names(adat2.dt.l)[1,3,5,7,9]<-"NTmin"
-names(adat2.dt.l)[2,4,5,7,10]<-"dt"
-adat2.dt.l<- rbind( cbind(adat2.dt[,1:2],"1st"), cbind(adat2.dt[,1:2],"2nd"), cbind(adat2.dt[,1:2],"3rd"),
-                    cbind(adat2.dt[,1:2],"4th"),cbind(adat2.dt[,1:2],"Nymph") )
-  
-  
-  
+#----
+#dev time
+colnames(adat2.dt)[c(1,3,5,7,9)]<-"NTmin"
+colnames(adat2.dt)[c(2,4,6,8,10)]<-"dt"
+adat2.dt.l<- rbind( cbind(adat2.dt[,1:2], stage="1st"), cbind(adat2.dt[,1:2], stage="2nd"), cbind(adat2.dt[,1:2], stage="3rd"), cbind(adat2.dt[,1:2], stage="4th"),cbind(adat2.dt[,1:2], stage="Nymph") )
 
+#mean metric
+adat2.dt.m= adat2.dt.l %>%
+  group_by(NTmin, stage) %>%
+  summarise(dt= mean(dt))
+
+ggplot(data=adat2.dt.m, aes(x=stage, y =dt, color=factor(NTmin), group=factor(NTmin)))+geom_line()
+#fix straight lines
+
+#----
+#performance
+
+#mean metric
+adat2.p.m= adat2.p %>%
+  group_by(NTmin) %>%
+  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Fecundtiy, na.rm = TRUE), fec.rate=mean(Fecundity.rate, na.rm = TRUE) )
+
+#to long format
+adat2.p.l<- melt(adat2.p.m, id.vars = c("NTmin"), variable.name = "metric")
+
+ggplot(data=adat2.p.l, aes(x=NTmin, y =value))+geom_line()+facet_wrap(.~metric)
+
+#----
+#life table
+ggplot(data=adat2.lt, aes(x=day, y =L.x., color=factor(NTmin), group=factor(NTmin) ))+geom_line()
+ggplot(data=adat2.lt, aes(x=day, y =M.x., color=factor(NTmin), group=factor(NTmin) ))+geom_smooth()
+
+#----
+#survival
+ggplot(data=adat2.sur, aes(x=NTmin, y =Days, color=factor(NTmin), group=factor(NTmin) ))+geom_point()+geom_smooth()+facet_wrap(.~Status)
+
+#=====
 #Zhao et al. The importance of timing of heat events for predicting the dynamics of aphid pest populations. Pest management science, 2019
+#https://doi.org/10.1002/ps.5344
+#survival and productivity
+#no data online
 
+#=====
 #Ma CS, Wang L, Zhang W, Rudolf V 2018. Resolving biological impacts of multiple heat waves: interaction of hot and recovery days. Oikos 127:622–33
 #https://doi.org/10.1111/oik.04699
+#data: http://dx.doi.org/10.5061/dryad.5qk4s
 
+#vary number of successive hot days (1–3 days) and normal interval days (1–3 days)
+#either exposed aphids first to hot days or normal days
+
+#load biological data
+adat3.dev<- read.csv("Maetal2017/Development.csv")
+adat3.rep<- read.csv("Maetal2017/Reproduction.csv")
+adat3.tr<- read.csv("Maetal2017/Traits.csv")
+
+#----
+#generate temps
+#hot: 35°C and 20°C as the daily maximum and minimum temperatures
+#normal: 28°C and 13°C as the daily maximum and minimum temperatures
+#sine curve to simulate the diurnal fluctuations with a magnitude of 15°C 
+
+#make temperature sequences
+hd= diurnal_temp_variation_sine(T_max = 35, T_min = 20, 0:23)
+nd= diurnal_temp_variation_sine(T_max = 28, T_min = 13, 0:23)
+
+#set up matrix of 30 days of hourly temps
+trt<- expand.grid(hd=1:3, nd=1:3, first= c("n","h"))
+temps<- matrix(NA, nrow=nrow(trt), ncol=24*30)
+temps= as.data.frame(cbind(trt, temps))
+
+build.temps<- function(x){
+if(x[3]=="n") ts<- rep(c(rep(nd, x[2]), rep(hd, x[1])), ceiling(40/(x[1]+x[2])))
+if(x[3]=="h") ts<- rep(c(rep(hd, x[1]), rep(nd, x[2])), ceiling(40/(x[1]+x[2])))
+  return(ts[1:720])
+}
+  
+temps[, 3:ncol]
+tz= apply(temps[,1:3], MARGIN=1, FUN=build.temps)
+  
+#----
+#Traits
+#to long format
+adat3.l<- melt(adat3.tr[,c(2:7,26:29)], id.vars = c("Treatment","ID","H_C","CycleDays","ContinueNormalDay","ContinueHotday"), variable.name = "metric")
+
+#NymphDur, Longevity, Fecundity, BirthDur
+ggplot(data=adat3.l, aes(x=ContinueHotday, y =value, color=factor(ContinueNormalDay), group=factor(ContinueNormalDay)))+
+  geom_smooth(method='lm') +geom_point()+
+  facet_grid(H_C~metric, scales="free_y")
+
+#----
+#Other data sets
+
+#development:nymphal period
+#find first zero 
+dt= apply(adat3.dev[,5:ncol(adat3.dev)], MARGIN=1, FUN=function(x)max(which(x==1)) )
+dt[is.infinite(dt)]<-NA
+adat3.dev$dev<- dt
+
+#mean metric
+adat3.dev.m= adat3.dev %>%
+  group_by(TRT, Hot_Cold) %>%
+  summarise( dev= mean(dev, na.rm=TRUE) )
+
+ggplot(data=adat3.dev, aes(x=TRT, y =dev, color=Hot_Cold))+geom_point()
+
+ggplot(data=adat3.dev.m, aes(x=TRT, y =dev, color=Hot_Cold))+geom_point()
+
+#----
+#Reproduction
+adat3.rep$rep<- colSums(adat3.rep[,5:ncol(adat3.rep)])
+
+#mean metric
+adat3.rep.m= adat3.rep %>%
+  group_by(Treatment, Hot_Cold) %>%
+  summarise( rep= mean(rep, na.rm=TRUE) )
+
+ggplot(data=adat3.rep, aes(x=Treatment, y =rep, color=Hot_Cold))+geom_point()
+
+ggplot(data=adat3.rep.m, aes(x=Treatment, y =rep, color=Hot_Cold))+geom_point()
+
+#=====
 #Zhang W, Chang XQ, Hoffmann AA, Zhang S and Ma CS, Impact of hot events at different developmental stages of a moth: the closer to adult stage, the less reproductive output. Sci Rep 5: 1–9 (2015).
-
+#Plutella xylostella heat wave experiment
+#No data online
 
 
