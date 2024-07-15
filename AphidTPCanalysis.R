@@ -9,6 +9,8 @@ library(deSolve)
 library(pracma)				# contains sigmoid function
 library(TrenchR)
 
+#Analysis for English grain aphid, Sitobion avenae
+
 setwd("/Users/laurenbuckley/ThermalHistory")
 #setwd("/Users/lbuckley/ThermalHistory") #laptop
 
@@ -35,6 +37,7 @@ yini <- c(R = 0, P = 0, Mass = 0.1)
 #=====
 #Zhao et al. 2014. Night warming on hot days produces novel impacts on development, survival and reproduction in a small arthropod
 #Dryad data: http://doi.org/10.5061/dryad.q2070 
+#English grain aphid, Sitobion avenae
 
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/")
 #setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/")
@@ -70,7 +73,7 @@ colnames(temps)[2:25]<- 1:24
 #to long format
 temps.l<- melt(temps, id.vars = c("tmin"), variable.name = "hr")
 
-#plot
+#plot temperatures, varying night temperatures
 ggplot(data=temps.l, aes(x=hr, y =value, color=tmin, group=tmin))+geom_line()
 
 #-----
@@ -144,13 +147,18 @@ ggplot(data=adat2.lt, aes(x=day, y =M.x., color=factor(NTmin), group=factor(NTmi
 #survival
 ggplot(data=adat2.sur, aes(x=NTmin, y =Days, color=factor(NTmin), group=factor(NTmin) ))+geom_point()+geom_smooth()+facet_wrap(.~Status)
 
+#* Night warming compare estimated and observed
+
 #=====
 #Ma CS, Wang L, Zhang W, Rudolf V 2018. Resolving biological impacts of multiple heat waves: interaction of hot and recovery days. Oikos 127:622–33
 #https://doi.org/10.1111/oik.04699
 #data: http://dx.doi.org/10.5061/dryad.5qk4s
+#Sitobion avenae
 
 #vary number of successive hot days (1–3 days) and normal interval days (1–3 days)
 #either exposed aphids first to hot days or normal days
+
+#Finding: Increasing the duration of hot days in heat waves had a negative effect on various demographic rates and life-time fitness of individuals, but magnitude of this effect was typically contingent on the temporal clustering of hot periods.
 
 #load biological data
 adat3.dev<- read.csv("Maetal2017/Development.csv")
@@ -197,7 +205,7 @@ temps.l$treat<- paste(temps.l$hd, temps.l$nd, sep="_")
 temps.l$treat.nh<- paste(temps.l$hd, temps.l$nd, temps.l$first, sep="_")
 temps.l$time<-as.numeric(temps.l$time)
 
-#plot
+#plot temperatures
 plot(1:100, tz[1,1:100], type="l")
 plot(1:200, temps[1,4:203], type="l")
 ggplot(data=temps.l, aes(x=time, y =value, color=hd, group=treat.nh))+geom_line()+facet_wrap(.~treat)+xlim(0,100)
@@ -275,21 +283,36 @@ tp$NymphDur<- 1/tp$dr
 
 #to long format
 tp.l<- melt(tp, id.vars = c("hd","nd","first"), variable.name = "metric")
+tp.l$H_C<- c("C","H")[tp.l$first]
 
 #plot estimates
 ggplot(data=tp.l, aes(x=hd, y=value, color=factor(nd))) +geom_point()+
   geom_smooth(method='lm') +geom_point()+
-  facet_grid(metric~first, scales="free_y")
+  facet_grid(metric~H_C, scales="free_y")
 
 #plot with observed
 tp.l2<- tp.l[tp.l$metric %in% c("Longevity", "Fecundity","NymphDur"),]
 colnames(tp.l2)[1:3]<- c("ContinueHotday","ContinueNormalDay", "H_C")
-tp.l2$H_C<- c("C","H")[tp.l2$H_C]
-tp.l2$H_C<- factor(tp.l2$H_C)
+tp.l2<- tp.l2[,-6]
+#tp.l2$H_C<- c("C","H")[tp.l2$H_C]
+tp.l2$H_C<- as.factor(tp.l2$H_C)
 tp.l2$ContinueNormalDay <- factor(tp.l2$ContinueNormalDay)
+
+tp.l2$hd <- factor(tp.l2$ContinueNormalDay)
+tp.l2$nd <- factor(tp.l2$ContinueHotday)
+
+#just estimated
+ggplot(data=tp.l2, aes(x=hd, y=value, color=factor(nd),group=factor(nd))) +geom_point()+
+  geom_smooth(method='lm') +
+  facet_grid(metric~H_C, scales="free_y")
 
 #add to plot
 fig.trait2<- fig.trait+  geom_line(data=tp.l2, linetype="dashed", linewidth=1)
+#dash is estimated, solid is observed
+#observed: more hot days and fewer normal days between decreases survival, longevity, fecundity, and nymphal duration; increases development rate
+#estimated: more hot days and less time increases longevity, fecundity, and nymphal duration
+
+#*UPDATE PLOT
 
 #--------------------------
 #adapt Kingsolver Woods model
@@ -349,9 +372,11 @@ ggplot(perf, aes(x=ContinueHotday, y =value, color=factor(ContinueNormalDay)))+g
 
 #add to plot
 fig.trait3<- fig.trait2+  geom_line(data=perf[which(perf$metric=="Fecundity"),], linetype="dotted", linewidth=2)
+#dash is observed, solid is model estimate, dotted is Kingsolver and Woods
 
 #=====
 #Wang, XJ., Ma, CS. Can laboratory-reared aphid populations reflect the thermal performance of field populations in studies on pest science and climate change biology?. J Pest Sci 96, 509–522 (2023). https://doi.org/10.1007/s10340-022-01565-6
+#Sitobion avenae
 
 #read data
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
@@ -463,4 +488,5 @@ ggplot(data=tp.l, aes(x=Tmean, y=value, color=Tvar)) +geom_point()+
 #https://doi.org/10.1002/ps.5344
 #survival and productivity
 #no data online
+#Sitobion avenae 
 

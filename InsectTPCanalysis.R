@@ -15,6 +15,7 @@ setwd("/Users/laurenbuckley/ThermalHistory")
 #Load data
 #Ma et al. 2021. Are extreme high temperatures at low or high latitudes more likely to inhibit the population growth of a globally distributed aphid?
 #https://doi.org/10.1016/j.jtherbio.2021.102936
+#aphid Rhopalosiphum padi
 
 #2.1 Temp regimes Fig A2
 #During the day, temperature started to increase at 08:00 h, reached and stayed at a high level (35, 37 or 39 ◦C) from 12:00 to 13:00 h, and then decreased to 22 ◦C by 16:00 h. We kept temperature constant at 22 ◦ C for the rest of the day. Importantly, we set both the daily mean (25.2 ◦C) and minimum (22 ◦C) temperatures as fixed
