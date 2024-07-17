@@ -14,8 +14,13 @@ library(TrenchR)
 setwd("/Users/laurenbuckley/ThermalHistory")
 #setwd("/Users/lbuckley/ThermalHistory") #laptop
 
-#Kingsolver and Woods model
+#Ma et al. 2021. Are extreme high temperatures at low or high latitudes more likely to inhibit the population growth of a globally distributed aphid?
+#https://doi.org/10.1016/j.jtherbio.2021.102936
+#aphid Rhopalosiphum padi
+#Reproductive rate (nymphs/adult/day)
+Rr= function(T, a=0.263, b=3.7, T0 =30.1) exp(a*T)-exp(a*T0-(T0-T)/b)
 
+#Kingsolver and Woods model
 RsigCG = function(Time, State, Pars) {
   with(as.list(c(State, Pars)), {
     T = tfun(Time)   		## temperature determined from sine wave function
@@ -283,36 +288,6 @@ tp$NymphDur<- 1/tp$dr
 
 #to long format
 tp.l<- melt(tp, id.vars = c("hd","nd","first"), variable.name = "metric")
-tp.l$H_C<- c("C","H")[tp.l$first]
-
-#plot estimates
-ggplot(data=tp.l, aes(x=hd, y=value, color=factor(nd))) +geom_point()+
-  geom_smooth(method='lm') +geom_point()+
-  facet_grid(metric~H_C, scales="free_y")
-
-#plot with observed
-tp.l2<- tp.l[tp.l$metric %in% c("Longevity", "Fecundity","NymphDur"),]
-colnames(tp.l2)[1:3]<- c("ContinueHotday","ContinueNormalDay", "H_C")
-tp.l2<- tp.l2[,-6]
-#tp.l2$H_C<- c("C","H")[tp.l2$H_C]
-tp.l2$H_C<- as.factor(tp.l2$H_C)
-tp.l2$ContinueNormalDay <- factor(tp.l2$ContinueNormalDay)
-
-tp.l2$hd <- factor(tp.l2$ContinueNormalDay)
-tp.l2$nd <- factor(tp.l2$ContinueHotday)
-
-#just estimated
-ggplot(data=tp.l2, aes(x=hd, y=value, color=factor(nd),group=factor(nd))) +geom_point()+
-  geom_smooth(method='lm') +
-  facet_grid(metric~H_C, scales="free_y")
-
-#add to plot
-fig.trait2<- fig.trait+  geom_line(data=tp.l2, linetype="dashed", linewidth=1)
-#dash is estimated, solid is observed
-#observed: more hot days and fewer normal days between decreases survival, longevity, fecundity, and nymphal duration; increases development rate
-#estimated: more hot days and less time increases longevity, fecundity, and nymphal duration
-
-#*UPDATE PLOT
 
 #--------------------------
 #adapt Kingsolver Woods model
@@ -342,15 +317,14 @@ for(treat.k in 1:nrow(temps) ){
 } #end loop treatments
 
 #---------
-#plot Kingsolver model
-
+#Process Kingsolver model estimates
 #to long format
 pout.l<- melt(pout, id.vars = c("time","T", "hd","nd","first"), variable.name = "metric")
 
+#time series
 ggplot(data=pout.l[which(pout.l$first==1),], aes(x=time, y =value, color=factor(nd)))+geom_line()+
   facet_grid(metric~hd, scale="free_y")
 
-#plot Kingsolver model
 #sum performance
 perf= pout.l %>%
   group_by(hd, nd, first, metric) %>%
@@ -370,9 +344,33 @@ ggplot(perf, aes(x=ContinueHotday, y =value, color=factor(ContinueNormalDay)))+g
   facet_grid(metric~H_C, scale="free_y")
 #very small differences, scale?
 
-#add to plot
-fig.trait3<- fig.trait2+  geom_line(data=perf[which(perf$metric=="Fecundity"),], linetype="dotted", linewidth=2)
-#dash is observed, solid is model estimate, dotted is Kingsolver and Woods
+#------------
+#plot fitness components together
+
+#combine dataframes
+obs<- adat3.l[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value")]
+obs$type<- "observed"
+
+tp.l2<- tp.l[tp.l$metric %in% c("Longevity", "Fecundity","NymphDur"),]
+colnames(tp.l2)[1:3]<- c("ContinueHotday","ContinueNormalDay", "H_C")
+tp.l2$type<- "estimated"
+tp.l2$H_C<- c("C","H")[tp.l2$H_C]
+
+est.kw<- perf[which(perf$metric=="Fecundity"),]
+est.kw$type<- "king est"
+  
+fdat<- rbind(obs, tp.l2[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value", "type")],
+             est.kw[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value", "type")] )
+
+#Plot NymphDur, Longevity, Fecundity, BirthDur
+fplot<- ggplot(data=fdat, aes(x=ContinueHotday, y =value, color=ContinueNormalDay, lty=type))+
+  geom_smooth(method='lm') +geom_point()+
+  facet_grid(metric~H_C, scales="free_y")
+
+#nymphal duration: more hot days increase dt but predicted to reduce
+#longevity: more hot days decrease longevity more than estimated when few normal days; less hot days decreases longevity less than expected when more normal days
+#fecundity: more hot days decrease fecundity more than estimated when few normal days; less hot days decreases longevity less than expected when more normal days
+#BirthDir
 
 #=====
 #Wang, XJ., Ma, CS. Can laboratory-reared aphid populations reflect the thermal performance of field populations in studies on pest science and climate change biology?. J Pest Sci 96, 509–522 (2023). https://doi.org/10.1007/s10340-022-01565-6
@@ -382,8 +380,12 @@ fig.trait3<- fig.trait2+  geom_line(data=perf[which(perf$metric=="Fecundity"),],
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
 #setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
 
+#mild means
 adat4.var<- read.csv("WangMa2023_temp22mean_diffvar.csv")
+#high means
 adat4.mean<- read.csv("WangMa2023_diffmeans.csv")
+#popgrowth
+adat4.r<- read.csv("WangMa2023_popgrowth.csv")
 
 #----------
 #set up temperatures
@@ -411,7 +413,7 @@ colnames(temps)= 1:24
 #temps<- as.data.frame(rep(temps, each = 50))
 
 Tmean= c(22, 22, 22, 22, 28, 30, 32, 28, 30, 32)
-Tvar= c(0, 5, 9, 13, 0, 0, 0, 28, 30, 32)
+Tvar= c(0, 5, 9, 13, 0, 0, 0, 5, 5, 5)
 treat= c("mild means", "mild means", "mild means", "mild means", "high means", "high means", "high means", "high means", "high means", "high means")
 temps= as.data.frame(cbind(Tmean, Tvar, treat, temps))
 temps$Tmean_var= paste(temps$Tmean, temps$Tvar, sep="_")
@@ -434,7 +436,7 @@ adat4.var.m= adat4.var %>%
 ggplot(data=adat4.var.m, aes(x=Tvar, y =value, color=population))+geom_point()+ geom_line()+
   facet_grid(metric~Tmean, scale="free_y")
 
-#Different means
+#Different means, redundant with adat4.var
 #sum performance
 adat4.mean.m= adat4.mean %>%
   group_by(Tmean, Tvar, population, metric) %>%
@@ -477,6 +479,43 @@ tp.l<- melt(tp, id.vars = c("Tmean","Tvar","treat"), variable.name = "metric")
 ggplot(data=tp.l, aes(x=Tmean, y=value, color=Tvar)) +geom_point()+
   geom_smooth(method='lm') +geom_point()+
   facet_grid(metric~treat, scales="free_y")
+
+#---------------
+#plot estimates vs observed
+
+adat4.var.m$type<- "observed"
+adat4.mean.m$type<- "observed"
+#align metric names
+#dat.mv<- rbind(adat4.var.m, adat4.mean.m)
+dat.mv<- adat4.var.m
+## UPDATE
+
+
+#add popgrowth
+adat4.r[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value")]
+
+Tmean  Tvar population metric     value type     treat 
+
+#----
+dat.mv$treat<- "mild means"
+dat.mv$treat[which(dat.mv$Tmean>22)]<- "high means"
+
+dat.mv$metric[dat.mv$metric=="dev_rate"]<-"dr"
+dat.mv$metric[dat.mv$metric=="fecundity"]<-"Fecundity"
+dat.mv$metric[dat.mv$metric=="survival"]<-"sur"
+
+tp.l$population<- NA
+tp.l$type<- "estimated"
+
+dat.mv<- rbind(dat.mv, 
+               tp.l[,c("Tmean","Tvar","population","metric","value","treat","type")] )
+#drop NA
+dat.mv<- dat.mv[!is.na(dat.mv$Tmean),]
+
+#plot
+ggplot(data=dat.mv, aes(x=Tvar, y =value, color=population, lty=type))+geom_point()+ geom_line()+  facet_grid(metric~Tmean, scale="free_y")
+
+#model with sensitivity to extremes
 
 #=========================================
 
