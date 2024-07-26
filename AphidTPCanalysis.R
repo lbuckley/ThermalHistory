@@ -39,6 +39,28 @@ RsigCG = function(Time, State, Pars) {
 pars <- c(tauR = 3,  tauP = 20, Rm2 = 10, Pm=10, Tc = 35, Rc = 5, aIng = 0.02, bIng = 0.8, C = 0.8, k = 0.5)
 yini <- c(R = 0, P = 0, Mass = 0.1)
 
+#-------------
+#estimate performance using constant TPC
+#NymphDur, Longevity, Fecundity, BirthDur
+
+perf.fun<- function(ts){
+  #nymphal survival
+  sur1<- mean(as.numeric(sur(ts)))
+  
+  #Adult longevity (days)
+  long1<- mean(as.numeric(long(ts)))
+  
+  #Lifetime fecundity (nymphs / adult)
+  fecun1<- mean(as.numeric(fec(ts)))
+  
+  #Developmental rate (1/days)
+  dr1<- as.numeric(dr(ts))
+  dr1[dr1<0] <- 0
+  dr1<- mean(dr1)
+  
+  return( c(sur1, long1, fecun1, dr1) )
+}
+
 #=====
 #Zhao et al. 2014. Night warming on hot days produces novel impacts on development, survival and reproduction in a small arthropod
 #Dryad data: http://doi.org/10.5061/dryad.q2070 
@@ -152,9 +174,92 @@ ggplot(data=adat2.lt, aes(x=day, y =M.x., color=factor(NTmin), group=factor(NTmi
 #survival
 ggplot(data=adat2.sur, aes(x=NTmin, y =Days, color=factor(NTmin), group=factor(NTmin) ))+geom_point()+geom_smooth()+facet_wrap(.~Status)
 
+#--------------------------
 #* Night warming compare estimated and observed
 
-#=====
+#estimate performance
+tz= t(apply(temps[,2:25], MARGIN=1, FUN=perf.fun))
+tp= as.data.frame(cbind(temps[,1], tz))
+colnames(tp)<- c("tmin","sur", "Longevity", "Fecundity", "dr")
+tp$NymphDur<- 1/tp$dr
+
+#to long format
+tp.l<- melt(tp, id.vars = c("tmin"), variable.name = "metric")
+
+#--------------------------
+#adapt Kingsolver Woods model
+
+tfun<- function(Time) temps1[Time]
+
+#estimate performance
+for(treat.k in 1:nrow(temps) ){
+  
+  temps1<- as.numeric(temps[treat.k,2:25])
+  times<- 1:720
+  
+  out2 <- ode(func = RsigCG, y = yini, parms = pars, times = times)
+  
+  #convert to dataframe
+  out2.df <- data.frame(out2)
+  colnames(out2.df)[5:7]<- c("T","I","G") 
+  #summary(out2.df)
+  
+  out2.df$tmin<- temps[treat.k,"tmin"]
+
+  if(treat.k==1) pout<- out2.df
+  if(treat.k>1) pout<- rbind(pout, out2.df)
+  
+} #end loop treatments
+
+#---------
+#Process Kingsolver model estimates
+#to long format
+pout.l<- melt(pout, id.vars = c("time","tmin"), variable.name = "metric")
+
+#time series
+ggplot(data=pout.l, aes(x=time, y =value, color=factor(tmin)))+geom_line()+
+  facet_grid(.~metric, scale="free_y")
+
+#sum performance
+perf= pout.l %>%
+  group_by(tmin, metric) %>%
+  summarise(value= mean(na.omit(value)))
+
+#equate growth to reproduction
+perf$metric<- as.character(perf$metric)
+perf$metric[which(perf$metric=="G")]<-"Fecundity"
+perf$metric<- as.factor(perf$metric)
+
+#plot Kingsolver and Woods estimate
+ggplot(perf, aes(x=tmin, y =value))+geom_line()+
+  facet_grid(metric~., scale="free_y")
+#very small differences, scale?
+
+#------------
+#plot fitness components together
+
+#combine dataframes
+obs<- adat2.p.l[,c("NTmin","metric","value")]
+obs$type<- "observed"
+
+pout.l
+
+tp.l2<- perf[perf$metric %in% c("Longevity", "Fecundity","NymphDur"),]
+tp.l2$type<- "estimated"
+tp.l2$H_C<- c("C","H")[tp.l2$H_C]
+
+est.kw<- perf[which(perf$metric=="Fecundity"),]
+est.kw$type<- "king est"
+
+fdat<- rbind(obs, tp.l2[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value", "type")],
+             est.kw[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value", "type")] )
+
+#Plot NymphDur, Longevity, Fecundity, BirthDur
+fplot<- ggplot(data=fdat, aes(x=ContinueHotday, y =value, color=ContinueNormalDay, lty=type))+
+  geom_smooth(method='lm') +geom_point()+
+  facet_grid(metric~H_C, scales="free_y")
+
+#=========================================
 #Ma CS, Wang L, Zhang W, Rudolf V 2018. Resolving biological impacts of multiple heat waves: interaction of hot and recovery days. Oikos 127:622–33
 #https://doi.org/10.1111/oik.04699
 #data: http://dx.doi.org/10.5061/dryad.5qk4s
@@ -487,14 +592,13 @@ adat4.var.m$type<- "observed"
 adat4.mean.m$type<- "observed"
 #align metric names
 #dat.mv<- rbind(adat4.var.m, adat4.mean.m)
-dat.mv<- adat4.var.m
-## UPDATE
 
+#to long format
+r.l<- melt(adat4.r[,c("Tmean","Tvar","population","mean_Ro","mean_rm")], id.vars = c("Tmean","Tvar","population"), variable.name = "metric")
+r.l$type<- "observed"
 
 #add popgrowth
-adat4.r[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value")]
-
-Tmean  Tvar population metric     value type     treat 
+dat.mv<- rbind(adat4.var.m, r.l)
 
 #----
 dat.mv$treat<- "mild means"
