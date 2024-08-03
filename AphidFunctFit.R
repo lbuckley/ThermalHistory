@@ -114,15 +114,15 @@ perf.fun<- function(ts){
 
 #kB= 1.380649*10^{-23}
 
-pdet<- function(pdet_tprev, dt, Ea=5.78*10^5, R=8.314, T, Topt, c1, c2, c3)  pdet_tprev + dt * exp(-Ea/(R*(T+273.15))) * (c1*dt + c2) + c3 *dt
+pdet<- function(pdet_tprev, dt, Ea=0.65, R=8.62*10^{-5}, T, Topt, c1, c2, c3)  pdet_tprev + dt * exp(-Ea/(R*(T+273.15))) * (c1*pdet_tprev + c2) + c3 *dt
 
-#pu tin Topt
+#put in Topt
 #exp(-5.78*10^5/(8.314*(5+273.15)))= 2.829373e-109
 #exp(-8.62*10^{-5}/(0.65*(5+273.15)))= ~1
   
 plot(1:50, pdet(pdet_tprev=0, dt=1, Ea=5.78*10^5, R=8.314, T=1:50, Topt=30, c1=10^100, c2=10.7^100, c3=0.0), type="l")
 
-plot(1:50, pdet(pdet_tprev=0, dt=1, Ea=8.62*10^{-5}, R=0.65, T=1:50, Topt=30, c1=1.02, c2=1.01, c3=0.0), type="l")
+plot(1:50, pdet(pdet_tprev=0, dt=1, R=8.62*10^{-5}, Ea=0.65, T=1:50, Topt=30, c1=100000000, c2=100000000, c3=0.0), type="l")
 
 #performance with detriment
 pf<- function(Ts, Topt, c1=1.02, c2=1.01, c3=0.0){
@@ -135,8 +135,10 @@ pf<- function(Ts, Topt, c1=1.02, c2=1.01, c3=0.0){
   
   for(time in ts){
   if(Ts[time]>Topt){    
-    pdets[time+1]= pdet(pdets[time], dt=1, Ea=8.62*10^{-5}, R=0.65, T=Ts[time], Topt, c1, c2, c3)
-  p[time]<- p[time]- pdets[time+1]
+    pdets[time+1]= pdet(pdets[time], dt=1, Ea=0.65, R=8.62*10^{-5}, T=Ts[time], Topt, c1, c2, c3)
+    if(pdets[time+1]<0) pdets[time+1]<-0
+    if(pdets[time+1]>1) pdets[time+1]<-1
+  p[time]<- p[time]* pdets[time+1]
   }
   }
 return(cbind(p,pdets[2:length(pdets)]))  
@@ -173,13 +175,16 @@ temps.l<- melt(temps, id.vars = c("tmin"), variable.name = "hr")
 ggplot(data=temps.l, aes(x=hr, y =value, color=tmin, group=tmin))+geom_line()
 
 #-------------
-temps= temps.l[which(temps.l$tmin==13),"value"]
+temps= rep(temps.l[which(temps.l$tmin==13),"value"],7)
 
-pout<- pf(Ts=temps, Topt=20, c1=1.02, c2=1.01, c3=0.0)
+plot(1:50, pdet(pdet_tprev=0, dt=1, R=8.62*10^{-5}, Ea=0.65, T=1:50, Topt=30, c1=1.1, c2=10000000000, c3=-0.3), type="l")
+
+pout<- pf(Ts=temps, Topt=20, c1=1.1, c2=20000000000, c3=0.15)
 pTs<- pout[,1]
 
-plot(1:length(temps), pTs, type="l")
+plot(1:length(temps), pTs, type="l") #, ylim=c(0,10) #performance with damage
 points(1:length(temps), fec(temps, a= -69.1, b=12.49, c= -0.34), type="l", col="purple") #just performance
 points(1:length(temps), temps, type="l", col="orange") #temperatures
-points(1:length(temps), pout[,2], type="l", col="green")
+points(1:length(temps), pout[,2], type="l", col="green") #damage
+
 

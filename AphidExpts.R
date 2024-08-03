@@ -48,14 +48,22 @@ for(t.k in 1:length(tmin)){
   temps[t.k, 22:24]= ts[match(22:24, t.hrs)]
 }
 
-temps= as.data.frame(cbind(tmin, temps))
-colnames(temps)[2:25]<- 1:24
+##do.call("rbind", rep(list(A), n))
+temps= as.data.frame(cbind(tmin, temps, temps, temps, temps, temps, temps, temps))
+colnames(temps)[2:ncol(temps)]<- 1:(ncol(temps)-1)
 
 #to long format
-temps.l<- melt(temps, id.vars = c("tmin"), variable.name = "hr")
+temps.l<- melt(temps, id.vars = c("tmin"), variable.name = "time")
 
 #plot temperatures, varying night temperatures
-ggplot(data=temps.l, aes(x=hr, y =value, color=tmin, group=tmin))+geom_line()
+ggplot(data=temps.l, aes(x=time, y =value, color=tmin, group=tmin))+geom_line()
+
+#combine temp data
+colnames(temps.l)<- c("treatment","time","temp")
+temps.l$expt<- 1
+
+temps.all<- temps.l
+temps.all$time<- as.numeric(temps.all$time)
 
 #-----
 
@@ -133,6 +141,13 @@ plot(1:100, tz[1,1:100], type="l")
 plot(1:200, temps[1,4:203], type="l")
 ggplot(data=temps.l, aes(x=time, y =value, color=hd, group=treat.nh))+geom_line()+facet_wrap(.~treat)+xlim(0,100)
 
+#combine temp data
+temps.l<- temps.l[,c("treat.nh","time","value")]
+colnames(temps.l)<- c("treatment","time","temp")
+temps.l$expt<- 2
+
+temps.all<- rbind(temps.all, temps.l)
+
 #----
 #Traits
 #to long format
@@ -176,93 +191,7 @@ ggplot(data=adat3.rep, aes(x=Treatment, y =rep, color=Hot_Cold))+geom_point()
 ggplot(data=adat3.rep.m, aes(x=Treatment, y =rep, color=Hot_Cold))+geom_point()
 
 #--------------------------
-#estimate performance using constant TPC
 
-#NymphDur, Longevity, Fecundity, BirthDur
-
-perf.fun<- function(ts){
-  #nymphal survival
-  sur1<- mean(as.numeric(sur(ts)))
-  
-  #Adult longevity (days)
-  long1<- mean(as.numeric(long(ts)))
-  
-  #Lifetime fecundity (nymphs / adult)
-  fecun1<- mean(as.numeric(fec(ts)))
-  
-  #Developmental rate (1/days)
-  dr1<- as.numeric(dr(ts))
-  dr1[dr1<0] <- 0
-  dr1<- mean(dr1)
-  
-  return( c(sur1, long1, fecun1, dr1) )
-}
-
-#estimate performance
-tz= t(apply(temps[,4:720], MARGIN=1, FUN=perf.fun))
-tp= cbind(temps[,1:3], tz)
-colnames(tp)[4:7]<- c("sur", "Longevity", "Fecundity", "dr")
-tp$NymphDur<- 1/tp$dr
-
-#to long format
-tp.l<- melt(tp, id.vars = c("hd","nd","first"), variable.name = "metric")
-
-#--------------------------
-#adapt Kingsolver Woods model
-
-tfun<- function(Time) temps1[Time]
-
-#estimate performance
-for(treat.k in 1:nrow(temps) ){
-  
-  temps1<- as.numeric(temps[treat.k,4:723])
-  times<- 1:720
-  
-  out2 <- ode(func = RsigCG, y = yini, parms = pars, times = times)
-  
-  #convert to dataframe
-  out2.df <- data.frame(out2)
-  colnames(out2.df)[5:7]<- c("T","I","G") 
-  #summary(out2.df)
-  
-  out2.df$hd<- temps[treat.k,"hd"]
-  out2.df$nd<- temps[treat.k,"nd"]
-  out2.df$first<- temps[treat.k,"first"]
-  
-  if(treat.k==1) pout<- out2.df
-  if(treat.k>1) pout<- rbind(pout, out2.df)
-  
-} #end loop treatments
-
-#---------
-#Process Kingsolver model estimates
-#to long format
-pout.l<- melt(pout, id.vars = c("time","T", "hd","nd","first"), variable.name = "metric")
-
-#time series
-ggplot(data=pout.l[which(pout.l$first==1),], aes(x=time, y =value, color=factor(nd)))+geom_line()+
-  facet_grid(metric~hd, scale="free_y")
-
-#sum performance
-perf= pout.l %>%
-  group_by(hd, nd, first, metric) %>%
-  summarise(value= mean(value))
-colnames(perf)[1:3]<- c("ContinueHotday","ContinueNormalDay", "H_C")
-perf$H_C<- c("C","H")[perf$H_C]
-perf$H_C<- factor(perf$H_C)
-perf$ContinueNormalDay <- factor(perf$ContinueNormalDay)
-
-#equate growth to reproduction
-perf$metric<- as.character(perf$metric)
-perf$metric[which(perf$metric=="G")]<-"Fecundity"
-perf$metric<- as.factor(perf$metric)
-
-#plot Kingsolver and Woods estimate
-ggplot(perf, aes(x=ContinueHotday, y =value, color=factor(ContinueNormalDay)))+geom_line()+
-  facet_grid(metric~H_C, scale="free_y")
-#very small differences, scale?
-
-#------------
 #plot fitness components together
 
 #combine dataframes
@@ -291,6 +220,7 @@ fplot<- ggplot(data=fdat, aes(x=ContinueHotday, y =value, color=ContinueNormalDa
 #BirthDir
 
 #=====
+#Expt 3
 #Wang, XJ., Ma, CS. Can laboratory-reared aphid populations reflect the thermal performance of field populations in studies on pest science and climate change biology?. J Pest Sci 96, 509–522 (2023). https://doi.org/10.1007/s10340-022-01565-6
 #Sitobion avenae
 
@@ -362,41 +292,6 @@ adat4.mean.m= adat4.mean %>%
 
 ggplot(data=adat4.mean.m, aes(x=Tvar, y =value, color=population))+geom_point()+ geom_line()+
   facet_grid(metric~Tmean, scale="free_y")
-
-#--------------------------
-#estimate performance using constant TPC
-
-perf.fun<- function(ts){
-  #nymphal survival
-  sur1<- mean(as.numeric(sur(ts)))
-  
-  #Adult longevity (days)
-  long1<- mean(as.numeric(long(ts)))
-  
-  #Lifetime fecundity (nymphs / adult)
-  fecun1<- mean(as.numeric(fec(ts)))
-  
-  #Developmental rate (1/days)
-  dr1<- as.numeric(dr(ts))
-  dr1[dr1<0] <- 0
-  dr1<- mean(dr1)
-  
-  return( c(sur1, long1, fecun1, dr1) )
-}
-
-#estimate performance
-tz= t(apply(temps[,4:(ncol(temps)-1)], MARGIN=1, FUN=perf.fun))
-tp= cbind(temps[,1:3], tz)
-colnames(tp)[4:7]<- c("sur", "Longevity", "Fecundity", "dr")
-tp$NymphDur<- 1/tp$dr
-
-#to long format
-tp.l<- melt(tp, id.vars = c("Tmean","Tvar","treat"), variable.name = "metric")
-
-#plot estimates
-ggplot(data=tp.l, aes(x=Tmean, y=value, color=Tvar)) +geom_point()+
-  geom_smooth(method='lm') +geom_point()+
-  facet_grid(metric~treat, scales="free_y")
 
 #---------------
 #plot estimates vs observed
