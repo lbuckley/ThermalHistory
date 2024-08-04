@@ -48,8 +48,7 @@ for(t.k in 1:length(tmin)){
   temps[t.k, 22:24]= ts[match(22:24, t.hrs)]
 }
 
-##do.call("rbind", rep(list(A), n))
-temps= as.data.frame(cbind(tmin, temps, temps, temps, temps, temps, temps, temps))
+temps= as.data.frame(cbind(tmin, do.call("cbind", rep(list(temps), 30))))
 colnames(temps)[2:ncol(temps)]<- 1:(ncol(temps)-1)
 
 #to long format
@@ -66,18 +65,24 @@ temps.all<- temps.l
 temps.all$time<- as.numeric(temps.all$time)
 
 #-----
+#Assemble performance
+
+#mean metric
+adat2.p.m= adat2.p %>%
+  group_by(NTmin) %>%
+  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Fecundtiy, na.rm = TRUE), fec.rate=mean(Fecundity.rate, na.rm = TRUE) )
+
+#to long format
+adat2.p.l<- melt(adat2.p.m, id.vars = c("NTmin"), variable.name = "metric")
+
+ggplot(data=adat2.p.l, aes(x=NTmin, y =value))+geom_line()+facet_wrap(.~metric)
 
 #combine dataframes
 obs<- adat2.p.l[,c("NTmin","metric","value")]
-obs$type<- "observed"
+colnames(obs)[1]<- c("treatment")
+obs$expt<- 1
 
-fdat<- rbind(obs, tp.l2[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value", "type")],
-             est.kw[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value", "type")] )
-
-#Plot NymphDur, Longevity, Fecundity, BirthDur
-fplot<- ggplot(data=fdat, aes(x=ContinueHotday, y =value, color=ContinueNormalDay, lty=type))+
-  geom_smooth(method='lm') +geom_point()+
-  facet_grid(metric~H_C, scales="free_y")
+PerfDat<- obs
 
 #=========================================
 #Expt 2
@@ -191,33 +196,14 @@ ggplot(data=adat3.rep, aes(x=Treatment, y =rep, color=Hot_Cold))+geom_point()
 ggplot(data=adat3.rep.m, aes(x=Treatment, y =rep, color=Hot_Cold))+geom_point()
 
 #--------------------------
-
-#plot fitness components together
-
-#combine dataframes
+#add performance data
 obs<- adat3.l[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value")]
-obs$type<- "observed"
 
-tp.l2<- tp.l[tp.l$metric %in% c("Longevity", "Fecundity","NymphDur"),]
-colnames(tp.l2)[1:3]<- c("ContinueHotday","ContinueNormalDay", "H_C")
-tp.l2$type<- "estimated"
-tp.l2$H_C<- c("C","H")[tp.l2$H_C]
+obs$hc<- match(obs$H_C, c("C","H") )
+obs$treatment<- paste(obs$ContinueHotday, obs$ContinueNormalDay, obs$hc, sep="_")
+obs$expt<- 2
 
-est.kw<- perf[which(perf$metric=="Fecundity"),]
-est.kw$type<- "king est"
-  
-fdat<- rbind(obs, tp.l2[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value", "type")],
-             est.kw[,c("H_C","ContinueNormalDay","ContinueHotday","metric","value", "type")] )
-
-#Plot NymphDur, Longevity, Fecundity, BirthDur
-fplot<- ggplot(data=fdat, aes(x=ContinueHotday, y =value, color=ContinueNormalDay, lty=type))+
-  geom_smooth(method='lm') +geom_point()+
-  facet_grid(metric~H_C, scales="free_y")
-
-#nymphal duration: more hot days increase dt but predicted to reduce
-#longevity: more hot days decrease longevity more than estimated when few normal days; less hot days decreases longevity less than expected when more normal days
-#fecundity: more hot days decrease fecundity more than estimated when few normal days; less hot days decreases longevity less than expected when more normal days
-#BirthDir
+PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt")])
 
 #=====
 #Expt 3
@@ -254,11 +240,9 @@ temps[9,]<- diurnal_temp_variation_sine(T_max = 35, T_min = 25, 1:24)
 #32±5
 temps[10,]<- diurnal_temp_variation_sine(T_max = 37, T_min = 27, 1:24)
 
-temps<- as.data.frame(temps)
-colnames(temps)= 1:24
-
-##expand to 50 days
-#temps<- as.data.frame(rep(temps, each = 50))
+##expand to 30 days
+temps= do.call("cbind", rep(list(temps), 30))
+colnames(temps)[2:ncol(temps)]<- 1:(ncol(temps)-1)
 
 Tmean= c(22, 22, 22, 22, 28, 30, 32, 28, 30, 32)
 Tvar= c(0, 5, 9, 13, 0, 0, 0, 5, 5, 5)
@@ -273,6 +257,13 @@ temps.l$value= as.numeric(temps.l$value)
 
 ggplot(data=temps.l, aes(x=time, y =value, color=Tvar, group=Tmean_var))+geom_line()+
   facet_grid(.~treat, scale="free_y")
+
+#combine temp data
+temps.l<- temps.l[,c("Tmean_var","time","value")]
+colnames(temps.l)<- c("treatment","time","temp")
+temps.l$expt<- 3
+
+temps.all<- rbind(temps.all, temps.l)
 
 #----------
 #Tmean of 22, difference variance
@@ -294,40 +285,21 @@ ggplot(data=adat4.mean.m, aes(x=Tvar, y =value, color=population))+geom_point()+
   facet_grid(metric~Tmean, scale="free_y")
 
 #---------------
-#plot estimates vs observed
-
-adat4.var.m$type<- "observed"
-adat4.mean.m$type<- "observed"
-#align metric names
-#dat.mv<- rbind(adat4.var.m, adat4.mean.m)
+#combine performance metrics
 
 #to long format
 r.l<- melt(adat4.r[,c("Tmean","Tvar","population","mean_Ro","mean_rm")], id.vars = c("Tmean","Tvar","population"), variable.name = "metric")
-r.l$type<- "observed"
 
 #add popgrowth
 dat.mv<- rbind(adat4.var.m, r.l)
 
-#----
-dat.mv$treat<- "mild means"
-dat.mv$treat[which(dat.mv$Tmean>22)]<- "high means"
+dat.mv$treatment= paste(dat.mv$Tmean, dat.mv$Tvar, sep="_")
 
-dat.mv$metric[dat.mv$metric=="dev_rate"]<-"dr"
-dat.mv$metric[dat.mv$metric=="fecundity"]<-"Fecundity"
-dat.mv$metric[dat.mv$metric=="survival"]<-"sur"
+#add performance data
+obs<- dat.mv[,c("treatment","metric","value")]
+obs$expt<- 3
 
-tp.l$population<- NA
-tp.l$type<- "estimated"
-
-dat.mv<- rbind(dat.mv, 
-               tp.l[,c("Tmean","Tvar","population","metric","value","treat","type")] )
-#drop NA
-dat.mv<- dat.mv[!is.na(dat.mv$Tmean),]
-
-#plot
-ggplot(data=dat.mv, aes(x=Tvar, y =value, color=population, lty=type))+geom_point()+ geom_line()+  facet_grid(metric~Tmean, scale="free_y")
-
-#model with sensitivity to extremes
+PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt")])
 
 #=========================================
 
@@ -340,4 +312,27 @@ ggplot(data=dat.mv, aes(x=Tvar, y =value, color=population, lty=type))+geom_poin
 #survival and productivity
 #no data online
 #Sitobion avenae 
+
+#====================
+#write out data sets
+
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
+#setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/out/")
+
+#align names
+PerfDat$metric[which(PerfDat$metric=="fec")]="fecundity"
+PerfDat$metric[which(PerfDat$metric=="Fecundity")]="fecundity"
+
+PerfDat$metric[which(PerfDat$metric=="lon")]="Longevity"
+
+write.csv(temps.all, "TempTimeSeries.csv")
+write.csv(PerfDat, "PerformanceData.csv")
+
+#plot temperatures for seven days
+ggplot(data=temps.all[which(temps.all$time<169),], aes(x=time, y =temp, color=treatment))+geom_line()+facet_wrap(.~expt)
+
+#plot fecundity
+ggplot(data=PerfDat[which(PerfDat$metric=="fecundity"),], aes(x=treatment, y =value))+geom_point()+facet_wrap(.~expt)
+
+
 
