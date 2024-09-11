@@ -187,4 +187,107 @@ points(1:length(temps), fec(temps, a= -69.1, b=12.49, c= -0.34), type="l", col="
 points(1:length(temps), temps, type="l", col="orange") #temperatures
 points(1:length(temps), pout[,2], type="l", col="green") #damage
 
+#==============================
+# Test fits
+
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
+
+temps.all<- read.csv("TempTimeSeries.csv")
+PerfDat<- read.csv("PerformanceData.csv")
+
+#fedundity TPC
+fec= function(T, a= -69.1, b=12.49, c= -0.34){
+  fec=a +b*T +c*T^2
+  fec[fec<0]<- 0
+  return(fec)
+}
+
+#FUNCTIONS
+#damage
+damagenew<- function(damage, T, c1, c2, c3, dt, Ea=0.65, R=8.62*10^{-5})  
+  {damagenew= damage + dt * exp(-Ea/(R*(T+273.15))) *10^9* (c1*damage + c2) + dt*c3
+  if(damagenew<0) damagenew<-0
+  if(damagenew>1) damagenew<-1
+  return(damagenew)
+}
+
+#compute performance
+perf<- function(series,c1,c2,c3,scale)  {
+  perf=NA
+  damage=0
+  for(i in 1:length(series)){
+    damage=damagenew(damage,T=series[i],c1=c1,c2=c2,c3=c3,dt=1)
+    perf= fec(series[i])*(1-damage)
+    if(i==1) perf.all=perf
+    if(i>1) perf.all=c(perf.all, perf)
+  }
+  return(perf.all*scale)
+}
+
+computeperf<- function(series,c1,c2,c3,scale,printdam=FALSE)  {
+  perf=0
+  damage=0
+  for(i in 1:length(series)){
+    damage=damagenew(damage,T=series[i],c1=c1,c2=c2,c3=c3,dt=1)
+  perf= perf + fec(series[i])*(1-damage)
+  }
+return(perf*scale)
+}
+
+#error
+c1fix=0
+c2fix=1
+c3fix=-0.015
+
+errs<- function(x,temps=temps.all[temps.all$expt==3,], fecundity=fecs[fecs$expt==3,])  {
+  totalerror=0
+  treats=unique(temps$treatment)
+  for(i in 1:length(treats)){
+    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],scale=x[3],printdam=False)-fecundity[fecundity$treatment==treats[i],"value"]
+    totalerror=totalerror + delta^2
+  }
+  return( sqrt(totalerror) )
+}
+
+fecs<- PerfDat[PerfDat$metric=="fecundity",]
+
+errs(c(1,-0.015,4e-4))
+
+#optimize
+opt<- optim(p=c(1,-0.015,4e-4), fn=errs, method=c("BFGS") )
+## FIX OUTPUT
+
+#opt estimates
+#exp 1
+14.0592519  0.3660127  0.2241584
+#exp 2
+
+#exp 3
+
+#plot performance with values
+temps.expt<- temps.all[temps.all$expt==1,]
+temps.expt$perf<- perf(temps.expt$temp,c1=0,c2=14.0592519,c3=0.3660127,scale=0.2241584) 
+
+ggplot(data=temps.expt, aes(x=time, y =perf, color=treatment))+geom_line()
+
+#----
+fec1=fec(temps.expt$temp) 
+dam1=damagenew(damage=0, temps.expt$temp, c1=0,c2=14.0592519,c3=0.3660127, dt=1, Ea=0.65, R=8.62*10^{-5})  
+p1= perf(temps.expt$temp,c1=0,c2=14.0592519,c3=0.3660127,scale=0.2241584)
+
+#fixed values
+dam1=damagenew(damage=0, temps.expt$temp, c1=0,c2=1,c3=-.015, dt=1, Ea=0.65, R=8.62*10^{-5})  
+p1= perf(temps.expt$temp,c1=0,c2=1,c3=-.015,scale=0.2241584)
+
+d1= rbind(cbind("fec",fec1, temps.expt$time, temps.expt$treatment), 
+          cbind("dam",dam1, temps.expt$time, temps.expt$treatment), 
+          cbind("perf",p1, temps.expt$time, temps.expt$treatment),
+          cbind("temp",temps.expt$temp, temps.expt$time, temps.expt$treatment) )
+colnames(d1)<- c("metric","value","time","treatment")
+d1<- as.data.frame(d1)
+d1$value <- as.numeric(d1$value)
+d1$time <- as.numeric(d1$time)
+d1$treatment <- as.numeric(d1$treatment)
+
+ggplot(data=d1, aes(x=time, y =value, color=factor(treatment)))+geom_line()+xlim(0,100)+facet_wrap(metric~., scale="free_y")
 
