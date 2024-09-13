@@ -95,9 +95,9 @@ perf.fun<- function(ts){
 }
 
 #-------------
-#Performance detreiment
+#Performance detriment
 
-# pdet_tprev: performace detriment at previous time period
+# pdet_tprev: performance detriment at previous time period
 # dt: time interval
 # Ea: activation energy
 # https://doi.org/10.1080/02656736.2018.1558289: activation energy ΔE=5.78±0.04×10^5 J mole−1, frequency factor A=3.27±11*10^91 sec−1
@@ -115,6 +115,9 @@ perf.fun<- function(ts){
 #kB= 1.380649*10^{-23}
 
 pdet<- function(pdet_tprev, dt, Ea=0.65, R=8.62*10^{-5}, T, Topt, c1, c2, c3)  pdet_tprev + dt * exp(-Ea/(R*(T+273.15))) * (c1*pdet_tprev + c2) + c3 *dt
+
+
+pdet<- function(pdet_tprev, dt, Ea=0.65, R=8.62*10^{-5}, T, Topt, c1, c2, c3)  pdet_tprev + dt * exp(-Ea/(R*((T-Topt)+273.15))) * (c1*pdet_tprev + c2) + c3*(Topt-T) *dt
 
 #put in Topt
 #exp(-5.78*10^5/(8.314*(5+273.15)))= 2.829373e-109
@@ -191,6 +194,7 @@ points(1:length(temps), pout[,2], type="l", col="green") #damage
 # Test fits
 
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
 
 temps.all<- read.csv("TempTimeSeries.csv")
 PerfDat<- read.csv("PerformanceData.csv")
@@ -204,6 +208,10 @@ fec= function(T, a= -69.1, b=12.49, c= -0.34){
 
 #FUNCTIONS
 #damage
+# c1: damage increase over time
+# c2: multiplicative change in damage
+# c3: linear increase in damage
+
 damagenew<- function(damage, T, c1, c2, c3, dt, Ea=0.65, R=8.62*10^{-5})  
   {damagenew= damage + dt * exp(-Ea/(R*(T+273.15))) *10^9* (c1*damage + c2) + dt*c3
   if(damagenew<0) damagenew<-0
@@ -212,12 +220,24 @@ damagenew<- function(damage, T, c1, c2, c3, dt, Ea=0.65, R=8.62*10^{-5})
 }
 
 #compute performance
+
 perf<- function(series,c1,c2,c3,scale)  {
   perf=NA
   damage=0
   for(i in 1:length(series)){
     damage=damagenew(damage,T=series[i],c1=c1,c2=c2,c3=c3,dt=1)
     perf= fec(series[i])*(1-damage)
+    if(i==1) perf.all=perf
+    if(i>1) perf.all=c(perf.all, perf)
+  }
+  return(perf.all*scale)
+}
+
+perf.nodamage<- function(series,c1,c2,c3,scale)  {
+  perf=NA
+  damage=0
+  for(i in 1:length(series)){
+    perf= fec(series[i])
     if(i==1) perf.all=perf
     if(i>1) perf.all=c(perf.all, perf)
   }
@@ -234,53 +254,77 @@ computeperf<- function(series,c1,c2,c3,scale,printdam=FALSE)  {
 return(perf*scale)
 }
 
+#-----------
+#plot parameter values
+ts= seq(1, 30, 0.5)
+temps= c(ts, rev(ts),ts, rev(ts))
+
+#make parameter combinations
+cs<- expand.grid(c1= seq(-0.2, 0.2, 0.1), c2= seq(.6, 1.6, 0.2), c3= seq(-0.004, -0.002, 0.001),
+                 scale= seq(0.003, 0.004, 0.001) )
+
+for(k in 1:nrow(cs)){
+  p1= perf(temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], scale=cs[k,4])
+  ps= cbind(time=1:length(temps), temps, p1, k, cs[k,])
+  if(k==1) ps.all<- ps
+  if(k>1) ps.all<- rbind(ps.all, ps)
+}
+
+ggplot(data=ps.all, aes(x=time, y =p1, color=c1,lty=factor(scale), group=k))+geom_line()+facet_grid(c2~c3) 
+
+plot(1:length(temps), temps, type="l")
+p1.nd= perf.nodamage(temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], scale=cs[k,4])
+plot(1:length(temps), p1.nd, type="l")
+
+# c1: damage increase over time
+# c2: multiplicative change in damage
+# c3: linear increase in damage
+
+#-----------
 #error
 c1fix=0
 c2fix=1
 c3fix=-0.015
 
-errs<- function(x,temps=temps.all[temps.all$expt==3,], fecundity=fecs[fecs$expt==3,])  {
+errs<- function(x,temps=temps.all[temps.all$expt==1,], fecundity=fecs[fecs$expt==1,])  {
   totalerror=0
   treats=unique(temps$treatment)
   for(i in 1:length(treats)){
-    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],scale=x[3],printdam=False)-fecundity[fecundity$treatment==treats[i],"value"]
+    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],scale=x[3],printdam=FALSE)-fecundity[which(fecundity$treatment==treats[i])[1],"value"]
     totalerror=totalerror + delta^2
   }
   return( sqrt(totalerror) )
 }
 
+#check fecundity values
 fecs<- PerfDat[PerfDat$metric=="fecundity",]
 
-errs(c(1,-0.015,4e-4))
-
+#-----------
 #optimize
 opt<- optim(p=c(1,-0.015,4e-4), fn=errs, method=c("BFGS") )
-## FIX OUTPUT
+opts<- opt$par
 
 #opt estimates
 #exp 1
-14.0592519  0.3660127  0.2241584
+opts<- c(0, 14.0592519, 0.3660127,  0.2241584)
+#mbh
+opts<- c(0,  1.38711837e+00, -1.79323190e-02,  4.62565842e-04)
+
 #exp 2
+opts<- c(0, 0.997508878, -0.026217091,  0.001551206)
 
 #exp 3
+opts<- c(0, 1.021437448, -0.025732468,  0.002401354)
 
+#-----------
 #plot performance with values
-temps.expt<- temps.all[temps.all$expt==1,]
-temps.expt$perf<- perf(temps.expt$temp,c1=0,c2=14.0592519,c3=0.3660127,scale=0.2241584) 
-
-ggplot(data=temps.expt, aes(x=time, y =perf, color=treatment))+geom_line()
-
-#----
 fec1=fec(temps.expt$temp) 
-dam1=damagenew(damage=0, temps.expt$temp, c1=0,c2=14.0592519,c3=0.3660127, dt=1, Ea=0.65, R=8.62*10^{-5})  
-p1= perf(temps.expt$temp,c1=0,c2=14.0592519,c3=0.3660127,scale=0.2241584)
 
-#fixed values
-dam1=damagenew(damage=0, temps.expt$temp, c1=0,c2=1,c3=-.015, dt=1, Ea=0.65, R=8.62*10^{-5})  
-p1= perf(temps.expt$temp,c1=0,c2=1,c3=-.015,scale=0.2241584)
+p1= perf(temps.expt$temp, c1=opts[1], c2=opts[2], c3=opts[3], scale=opts[4])
+p1.nd= perf.nodamage(temps.expt$temp, c1=opts[1], c2=opts[2], c3=opts[3], scale=opts[4])
 
 d1= rbind(cbind("fec",fec1, temps.expt$time, temps.expt$treatment), 
-          cbind("dam",dam1, temps.expt$time, temps.expt$treatment), 
+          cbind("perf.nd",p1.nd, temps.expt$time, temps.expt$treatment), 
           cbind("perf",p1, temps.expt$time, temps.expt$treatment),
           cbind("temp",temps.expt$temp, temps.expt$time, temps.expt$treatment) )
 colnames(d1)<- c("metric","value","time","treatment")
@@ -289,5 +333,15 @@ d1$value <- as.numeric(d1$value)
 d1$time <- as.numeric(d1$time)
 d1$treatment <- as.numeric(d1$treatment)
 
-ggplot(data=d1, aes(x=time, y =value, color=factor(treatment)))+geom_line()+xlim(0,100)+facet_wrap(metric~., scale="free_y")
+ggplot(data=d1, aes(x=time, y =value, color=factor(treatment)))+geom_line()+facet_wrap(metric~., scale="free_y") #+xlim(0,100)
+
+#plot outcomes
+#aggregate
+d1.agg= aggregate(d1, list(metric=d1$metric, treatment=d1$treatment), FUN=mean)[,-c(3,6)]
+d1.agg$group<- 1
+d1.agg$group[d1.agg$metric %in% c("perf","perf.nd")]<- 2
+
+ggplot(data=d1.agg[-which(d1.agg=="temp"),], aes(x=treatment, y =value, color=metric))+geom_line()+facet_wrap(group~., scale="free_y")
+
+
 
