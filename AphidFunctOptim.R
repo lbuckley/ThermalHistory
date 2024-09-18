@@ -10,6 +10,10 @@ library(pracma)				# contains sigmoid function
 library(TrenchR)
 library(rvmethod) #gaussian function
 
+#min damage .01, shut off c2, scale to mean value
+#get rid of c1, get rid of c2 floor for damage
+#take multiplicative piece out
+
 #FIT FUNCTION 
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
 #setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
@@ -31,12 +35,15 @@ ctmax= ts[which(ft[20:length(ft)]==0)[1]+20]
 
 #FUNCTIONS
 #damage
-# c1: damage increase over time
-# c2: multiplicative change in damage
-# c3: linear increase in damage
+# c1: multiplicative change in damage
+# c2: linear increase in damage
 
 #old damage functions
 #damagenew= damage + dt * exp(-Ea/(R*(T+273.15))) *10^9* (c1*damage + c2) + dt*c3
+
+#expt1  1.9922316458 0.0007300525 0.6617973126 1.1102984561 0.0019319162
+#expt2 1.9586133275 0.0004568355 0.2706604496 1.1895890090 0.0137586265
+#expt3 1.9571573088 0.0009706699 0.3468750696 1.2998210907 0.0089382852
 
 #make repair depend on distance from Topt
 #plot(1:40, gaussfunc(1:40, mu = Topt, sigma = 1))
