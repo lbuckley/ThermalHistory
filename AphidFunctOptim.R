@@ -10,10 +10,6 @@ library(pracma)				# contains sigmoid function
 library(TrenchR)
 library(rvmethod) #gaussian function
 
-#min damage .01, shut off c2, scale to mean value
-#get rid of c1, get rid of c2 floor for damage
-#take multiplicative piece out
-
 #FIT FUNCTION 
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
 #setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
@@ -35,20 +31,20 @@ ctmax= ts[which(ft[20:length(ft)]==0)[1]+20]
 
 #FUNCTIONS
 #damage
+# tp: threshold for damage between Topt and CTmax; Tdamage= Topt + (CTmax-Topt)*tp
 # c1: multiplicative change in damage
 # c2: linear increase in damage
+# c3: magnitude of repair
+# c4: breadth of repair function around Topt
 
 #old damage functions
 #damagenew= damage + dt * exp(-Ea/(R*(T+273.15))) *10^9* (c1*damage + c2) + dt*c3
 
-#expt1  1.9922316458 0.0007300525 0.6617973126 1.1102984561 0.0019319162
-#expt2 1.9586133275 0.0004568355 0.2706604496 1.1895890090 0.0137586265
-#expt3 1.9571573088 0.0009706699 0.3468750696 1.2998210907 0.0089382852
-
 #make repair depend on distance from Topt
 #plot(1:40, gaussfunc(1:40, mu = Topt, sigma = 1))
-damagenew<- function(damage, T, c1, c2, c3, c4, dt, Topt=topt)  
-{ damagenew= damage + dt*max(T-Topt,0)*(c1*damage + c2) #make exponential?
+damagenew<- function(damage, T, c1, c2, c3, c4, tp=0, dt, Topt=topt, CTmax=ctmax)  
+{ Tdamage= Topt + (CTmax-Topt)*tp
+  damagenew= damage + dt*max(T-Tdamage,0)*(c1*damage + c2) 
   damagenew= damagenew*dt*(1-c3*gaussfunc(T, mu = Topt, sigma = c4))
   if(damagenew<0) damagenew<-0
   if(damagenew>1) damagenew<-1
@@ -114,38 +110,49 @@ plot(1:length(temps), temps, type="l")
 p1.nd= perf.nodamage(temps, scale=cs[k,4])
 plot(1:length(temps), p1.nd, type="l")
 
-# c1: damage increase over time
-# c2: multiplicative change in damage
-# c3: linear increase in damage
-
-#-----------
-#error
+#==================
+#FIT MODEL
 #extract fecundity values
 fecs<- PerfDat[PerfDat$metric=="fecundity",]
 
-expt<-3
-#estimate scale
+expt<-2
+#estimate scale as max of fecundity
 scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(fec(temps.all[temps.all$expt==expt,"temp"]))/length(unique(fecs[fecs$expt==expt,"treatment"])))
 
-errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,]){  
+#minimize sqrt of squared error
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
   totalerror=0
   treats=unique(temps$treatment)
   for(i in 1:length(treats)){
-    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=x[5])-fecundity[which(fecundity$treatment==treats[i])[1],"value"]
-    totalerror=totalerror + delta^2
+    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    #totalerror=totalerror + delta^2
+    #return( sqrt(totalerror) )
+    
+    #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
+    totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
   }
-  return( sqrt(totalerror) )
+return(totalerror)
 }
 
 #-----------
 #optimize
-c(scale.est, scale.est/5, scale.est*5)
 
-opt<- optim(par=c(2,0.001,0.1,1,scale.est), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0,0,0,1,scale.est/5), upper=c(4,0.01,1,2,scale.est*5) )
+#other optimizers: https://stackoverflow.com/questions/11387330/errors-when-attempting-constrained-optimisation-using-optim
+#library(dfoptim)
+#nmkb(p, f, lower=lower, upper=upper) # Converges
 
-opts<- opt$par
-#opts<- c(opt$par, scale.est)
+# c(scale.est, scale.est/5, scale.est*5)
+# opt<- optim(par=c(2,0.001,0.1,1,scale.est), fn=errs, NULL, method=c("L-BFGS-B"), 
+#             lower=c(0,0,0,1,scale.est/5), upper=c(4,0.01,1,2,scale.est*5) )
+
+opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
+            lower=c(0,0.0001,0,1), upper=c(2,0.1,1,3) )
+
+#opts<- opt$par
+opts<- c(opt$par, scale.est)
+
+#value tells us the sum of the squared error
+fit<- opt$value
 
 #-----------
 #plot performance with values
@@ -187,5 +194,5 @@ ggplot(data=d1.agg, aes(x=treatment, y =value, color=metric, group=metric))+geom
 
 #opts
 #expt1  1.9922316458 0.0007300525 0.6617973126 1.1102984561 0.0019319162
-#expt2 1.9586133275 0.0004568355 0.2706604496 1.1895890090 0.0137586265
+#expt2 0.4055916632 0.0004650325 0.6349675031 2.1888166736 0.0032590219
 #expt3 1.9571573088 0.0009706699 0.3468750696 1.2998210907 0.0089382852
