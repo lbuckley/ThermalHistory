@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 
 #FIT FUNCTION 
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
+setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
 
 temps.all<- read.csv("TempTimeSeries.csv")
 PerfDat<- read.csv("PerformanceData.csv")
@@ -25,10 +25,11 @@ fec= function(T, a= -69.1, b=12.49, c= -0.34){
   return(fec)
 }
 #find Topt and CTmax
-ts=seq(0,40,0.5)
+ts=seq(0,40,0.1)
 ft<- fec(ts)
 topt<- ts[which.max(ft)]
-ctmax= ts[which(ft[20:length(ft)]==0)[1]+20]
+ctmax= ts[which(ft[120:length(ft)]==0)[1]+120]
+ctmin= ts[which(ft>0)[1]-1]
 
 #FUNCTIONS
 #damage
@@ -242,15 +243,24 @@ fit[expt,5,]<- c(opt$value, opt$convergence)
 
 } #end loop experiments
 
-#save output and fits
+#Construct table
+expt1<- cbind(expt="1", scenario=1:5, opts[1,,], fit[1,,])
+expt2<- cbind(expt="2", scenario=1:5, opts[2,,], fit[2,,])
+expt3<- cbind(expt="3", scenario=1:5, opts[3,,], fit[3,,])
+out<- rbind(expt1, expt2, expt3)
+colnames(out)[3:ncol(out)]<- c("c1","c2","c3","c4","tp","scale","AIC","converge?")
+out<- as.data.frame(out)
+out[,2:8]<- round(as.numeric(unlist(out[,2:8])), 4)
+out[9]<- round(as.numeric(unlist(out[9])),0)
+#save output
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-write.csv(rbind(opts[1,,],opts[2,,],opts[3,,]), "opts.csv")
-write.csv(rbind(fit[1,,],fit[2,,],fit[3,,]), "fit.csv")
+setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
+write.csv(out, "opts.csv")
 
 #=====================
 #plot performance with values
 
-expt<- 1
+expt<- 3
 #scen: #1. baseline; 2. fit scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
 scen<- 1
 
@@ -306,7 +316,7 @@ if(expt==3){
   #code experiment
   d1$expt<- "mild means"
   d1$expt[d1$treatment %in% c("28_0", "30_0", "32_0", "28_5", "30_5", "32_5")]<- "high means"
-  d1$expts<- factor(d1$expts, ordered=TRUE, levels=c("mild means","high means") )
+  d1$expt<- factor(d1$expt, ordered=TRUE, levels=c("mild means","high means") )
   
   plot1.expt3= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), group=treatment))+geom_line(lwd=1.5)+facet_grid(metric~expt, scale="free_y", switch="y")+xlim(0,100)+
     theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)+labs(color="treatment")
@@ -388,6 +398,7 @@ if(expt==3){
 
 #write out plot
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
+setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
 
 if(expt==1){
   pdf("AphidsExpt1.pdf",height = 14, width = 5)

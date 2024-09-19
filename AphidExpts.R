@@ -212,6 +212,7 @@ PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt")])
 
 #read data
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
+setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
 #setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
 
 #mild means
@@ -299,7 +300,10 @@ dat.mv$treatment= paste(dat.mv$Tmean, dat.mv$Tvar, sep="_")
 obs<- dat.mv[,c("treatment","metric","value")]
 obs$expt<- 3
 
-PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt")])
+#add field to distinguish lab and field
+PerfDat$population<- NA
+
+PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population")])
 
 #=========================================
 
