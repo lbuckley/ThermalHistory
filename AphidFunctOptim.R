@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 
 #FIT FUNCTION 
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
 
 temps.all<- read.csv("TempTimeSeries.csv")
 PerfDat<- read.csv("PerformanceData.csv")
@@ -96,8 +96,8 @@ cs<- expand.grid(c1=seq(0, 2, 0.5), c2= seq(0, .01, 0.003), c3= seq(0, 1, 0.25),
                  scale= 1 )
 
 #fit values
-cs<- expand.grid(c1=c(1.95,2), c2= c(0.0007, 0.001), c3= c(0.25,0.66), c4= c(1.1, 1.3),
-                 scale= 0.01)
+#cs<- expand.grid(c1=c(1.95,2), c2= c(0.0007, 0.001), c3= c(0.25,0.66), c4= c(1.1, 1.3), scale= 0.01)
+cs<- expand.grid(c1=c(1,2), c2= c(0.00001, 0.001), c3= c(0.2,0.9), c4= c(1, 3), scale= 0.01)
 
 for(k in 1:nrow(cs)){
   p1= perf(temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
@@ -106,12 +106,39 @@ for(k in 1:nrow(cs)){
   if(k>1) ps.all<- rbind(ps.all, ps)
 }
 
-ggplot(data=ps.all, aes(x=time, y =p1, color=c3, lty=factor(c4), group=k))+geom_line()+facet_grid(c2~c1) 
+funct.fig<- ggplot(data=ps.all, aes(x=time, y =p1, color=c3, lty=factor(c4), group=k))+
+  geom_line()+facet_grid(c2~c1)+theme_bw()+
+  ylab("Performance")+scale_color_viridis()
 
 #plot temps and performance without damage
-plot(1:length(temps), temps, type="l")
+ts<- as.data.frame(cbind(time=1:length(temps), temp=temps, performance=p1.nd))
+#to long format
+#ts.l= gather(ts, time, temp:performance, factor_key=TRUE)
+
+temp.fig<- ggplot(data=ts, aes(x=time, y =temp, ))+
+  geom_line()+theme_bw()+
+  ylab("Temperature (C)")+xlab("time")
+
 p1.nd= perf.nodamage(temps, scale=cs[k,4])
-plot(1:length(temps), p1.nd, type="l")
+pnd.fig<- ggplot(data=ts, aes(x=time, y =performance, ))+
+  geom_line()+theme_bw()+
+  ylab("Performance")+xlab("time")
+  
+#---
+layout <- '
+A#
+B#
+CC
+'
+
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
+pdf("FunFig.pdf",height = 10, width = 8)
+temp.fig/
+  pnd.fig +
+  funct.fig+
+  plot_layout(design = layout)
+  #plot_layout(heights = c(1, 1,2))
+dev.off()
 
 #==================
 #FIT MODEL, compare AIC of different assumptions
