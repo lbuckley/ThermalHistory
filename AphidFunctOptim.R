@@ -48,8 +48,8 @@ damagenew<- function(damage, T, c1, c2, c3, c4, tp=0, dt, Topt=topt, CTmax=ctmax
 { Tdamage= Topt + (CTmax-Topt)*tp
   damagenew= damage + dt*max(T-Tdamage,0)*(c1*damage + c2) 
   damagenew= damagenew*dt*(1-c3*gaussfunc(T, mu = Topt, sigma = c4))
-  if(damagenew<0) damagenew<-0
-  if(damagenew>1) damagenew<-1
+  damagenew[which(damagenew<0)]<-0
+  damagenew[which(damagenew>1)]<-1
   return(damagenew)
 }
 
@@ -109,36 +109,6 @@ for(k in 1:nrow(cs)){
 funct.fig<- ggplot(data=ps.all, aes(x=time, y =p1, color=c3, lty=factor(c4), group=k))+
   geom_line()+facet_grid(c2~c1)+theme_bw()+
   ylab("Performance")+scale_color_viridis()
-
-#plot temps and performance without damage
-ts<- as.data.frame(cbind(time=1:length(temps), temp=temps, performance=p1.nd))
-#to long format
-#ts.l= gather(ts, time, temp:performance, factor_key=TRUE)
-
-temp.fig<- ggplot(data=ts, aes(x=time, y =temp, ))+
-  geom_line()+theme_bw()+
-  ylab("Temperature (C)")+xlab("time")
-
-p1.nd= perf.nodamage(temps, scale=cs[k,4])
-pnd.fig<- ggplot(data=ts, aes(x=time, y =performance, ))+
-  geom_line()+theme_bw()+
-  ylab("Performance")+xlab("time")
-  
-#---
-layout <- '
-A#
-B#
-CC
-'
-
-setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
-pdf("FunFig.pdf",height = 10, width = 8)
-temp.fig/
-  pnd.fig +
-  funct.fig+
-  plot_layout(design = layout)
-  #plot_layout(heights = c(1, 1,2))
-dev.off()
 
 #==================
 #FIT MODEL, compare AIC of different assumptions
@@ -281,7 +251,7 @@ out[,2:8]<- round(as.numeric(unlist(out[,2:8])), 4)
 out[9]<- round(as.numeric(unlist(out[9])),0)
 #save output
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
 write.csv(out, "opts.csv")
 
 #=====================
@@ -425,7 +395,7 @@ if(expt==3){
 
 #write out plot
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
-setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
 
 if(expt==1){
   pdf("AphidsExpt1.pdf",height = 14, width = 5)
