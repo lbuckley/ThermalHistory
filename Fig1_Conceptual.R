@@ -78,9 +78,6 @@ perf<- function(series,c1,c2,c3,c4,tp=0,scale)  {
   return(perf.all)
 }
 
-p1<- cbind(1:length(ts),ts, perf(ts, c1=0.0001, c2=0.0001, c3=0, c4=1, scale=0.01))
-plot()
-
 perf.nodamage<- function(series,scale)  {
   p=NA
   for(i in 1:length(series)){
@@ -137,14 +134,14 @@ ts=seq(0,40,0.1)
 fs= fec(ts) 
 cdat<- as.data.frame(cbind(temp=ts,value=fs,type="fecundity", c1=0, c2=0, c3=0, c4=0, group=1))
 
-perf_wd<- function(T, c1, c2, tp=0, damage.p=0, Topt=18.4, CTmax=30.1, dt=1) {
+perf_wd<- function(T, c1, c2, tp=0, damage.p, Topt=18.4, CTmax=30.1, dt=1) {
   Tdamage= Topt + (CTmax-Topt)*tp
   Tdif= T-Tdamage
   Tdif[which(Tdif<0)]<- 0
-  damage.p= damage.p + dt*Tdif*(c1*damage.p + c2) 
-  damage.p[which(damage.p<0)]<-0
-  damage.p[which(damage.p>1)]<-1
-  p= fec(T)*(1-damage.p)
+  damage.p1= damage.p + dt*Tdif*(c1*damage.p + c2) 
+  damage.p1[which(damage.p1<0)]<-0
+  damage.p1[which(damage.p1>1)]<-1
+  p= fec(T)*(1-damage.p1)
   return(p)
 }
 
@@ -154,8 +151,8 @@ ddat3<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.01, c2=0.01, tp=0, da
 ddat4<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.1, c2=0.01, tp=0, damage.p=0.01), type="damage", c1=0.1, c2=0.01,  c3=0, c4=0, group=1.4))
 
 #performance with damage
-fdat<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.01, c2=0.0001, tp=0, damage.p=0.01), type="fecundity", c1=0.01, c2=0.0001, c3=0, c4=0, group=3.1))
-fdat2<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.1, c2=0.0001, tp=0, damage.p=0.01), type="fecundity", c1=0.1, c2=0.0001, c3=0, c4=0, group=3.2))
+fdat<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.01, c2=0.001, tp=0, damage.p=0.01), type="fecundity", c1=0.01, c2=0.001, c3=0, c4=0, group=3.1))
+fdat2<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.1, c2=0.001, tp=0, damage.p=0.01), type="fecundity", c1=0.1, c2=0.001, c3=0, c4=0, group=3.2))
 fdat3<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.01, c2=0.01, tp=0, damage.p=0.01), type="fecundity", c1=0.01, c2=0.01, c3=0, c4=0, group=3.3))
 fdat4<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.1, c2=0.01, tp=0, damage.p=0.01), type="fecundity", c1=0.1, c2=0.01,  c3=0, c4=0, group=3.4))
 
