@@ -44,24 +44,27 @@ ctmin= ts[which(ft>0)[1]-1]
 
 #make repair depend on distance from Topt
 #plot(1:40, gaussfunc(1:40, mu = Topt, sigma = 1))
-damagenew<- function(damage, T, c1, c2, c3, c4, tp=0, dt, Topt=topt, CTmax=ctmax)  
+damage.rep<- function(damage.p, T, c1, c2, c3, c4, tp=0, dt, Topt=topt, CTmax=ctmax)  
 { Tdamage= Topt + (CTmax-Topt)*tp
-  damagenew= damage + dt*max(T-Tdamage,0)*(c1*damage + c2) 
-  damagenew= damagenew*dt*(1-c3*gaussfunc(T, mu = Topt, sigma = c4))
-  damagenew[which(damagenew<0)]<-0
-  damagenew[which(damagenew>1)]<-1
-  return(damagenew)
+Tdif= T-Tdamage
+Tdif[which(Tdif<0)]<- 0
+damage.p= damage.p + dt*Tdif*(c1*damage.p + c2) 
+damage.p[which(damage.p<0)]<-0
+damage.p[which(damage.p>1)]<-1
+#repair
+damage.p= damage.p*(1-c3*gaussfunc(T, mu = Topt, sigma = c4))
+return(damage.p)
 }
 
 #compute performance
 perf<- function(series,c1,c2,c3,c4,tp=0,scale)  {
-  perf=NA
+  p=NA
   damage=0
   for(i in 1:length(series)){
-    damage=damagenew(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
-    perf= fec(series[i])*(1-damage)
-    if(i==1) perf.all=perf*scale
-    if(i>1) perf.all=c(perf.all, perf*scale)
+    damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
+    p= fec(series[i])*(1-damage)
+    if(i==1) perf.all=p*scale
+    if(i>1) perf.all=c(perf.all, p*scale)
   }
   return(perf.all)
 }
@@ -80,7 +83,7 @@ computeperf<- function(series,c1,c2,c3,c4,tp=0,scale,printdam=FALSE)  {
   p=0
   damage=0
   for(i in 1:length(series)){
-    damage=damagenew(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
+    damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
   p= p + fec(series[i])*(1-damage)
   }
 return(p*scale)
