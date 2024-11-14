@@ -70,7 +70,7 @@ temps.all$time<- as.numeric(temps.all$time)
 #mean metric
 adat2.p.m= adat2.p %>%
   group_by(NTmin) %>%
-  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Fecundtiy, na.rm = TRUE), fec.rate=mean(Fecundity.rate, na.rm = TRUE) )
+  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Fecundity, na.rm = TRUE), fec.rate=mean(Fecundity.rate, na.rm = TRUE) )
 
 #to long format
 adat2.p.l<- melt(adat2.p.m, id.vars = c("NTmin"), variable.name = "metric")

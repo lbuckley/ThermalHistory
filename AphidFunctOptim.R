@@ -124,10 +124,11 @@ fecs<- PerfDat[PerfDat$metric=="fecundity",]
 #3. fit tp
 #4. drop c1
 #5. drop c2 with floor for damage c2=0.0005
+#6. fit tp and scale
 
 #store output
-opts= array(NA, dim=c(3,5,6), dimnames = list(c("expt", "scenario","params")))
-fit= array(NA, dim=c(3,5,2), dimnames = list(c("expt", "scenario","fit"))) #aic and convergence
+opts= array(NA, dim=c(3,6,6), dimnames = list(c("expt", "scenario","params")))
+fit= array(NA, dim=c(3,6,2), dimnames = list(c("expt", "scenario","fit"))) #aic and convergence
 
 #loop through 3 experiments
 for(expt in 1:3){
@@ -154,11 +155,37 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
   return(totalerror)
 }
 
-opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0,0.0001,0,1), upper=c(2,0.1,1,3) )
+#opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
+#            lower=c(0,0.0001,0,1), upper=c(2,0.1,1,3) )
 
-#store output and fits
-opts[expt,1,]<- c(opt$par, 0, scale.est)
+opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
+            lower=c(0,0,0,0), upper=c(5,2,1,5) )
+
+#opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("BFGS") )
+
+#---
+# #TRY EST ALL
+# errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,]){  
+#   totalerror=0
+#   treats=unique(temps$treatment)
+#   for(i in 1:length(treats)){
+#     delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0.000001,c3=x[2],c4=x[3],scale=x[4])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+#     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
+#     totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
+#   }
+#   return(totalerror)
+# }
+# 
+# opt<- optim(par=c(1,0.5,1, scale.est), fn=errs, NULL, method=c("BFGS") )
+# 
+# #store output and fits
+# opts[expt,1,]<- c(opt$par[1], 0, opt$par[2:3], 0, opt$par[4])
+# fit[expt,1,]<- c(opt$value, opt$convergence)
+# 
+# } ######END LOOP EXPT
+#---
+
+opts[expt,1,]<- c(opt$par[1:4], 0, scale.est)
 fit[expt,1,]<- c(opt$value, opt$convergence)
 
 #2. fit scale
@@ -173,8 +200,13 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
   return(totalerror)
 }
 
+#opt<- optim(par=c(1,0.001,0.1,1, scale.est), fn=errs, NULL, method=c("L-BFGS-B"), 
+#            lower=c(0,0.0001,0,1, scale.est/2), upper=c(2,0.1,1,3, scale.est*2) )
+
 opt<- optim(par=c(1,0.001,0.1,1, scale.est), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0,0.0001,0,1, scale.est/2), upper=c(2,0.1,1,3, scale.est*2) )
+            lower=c(0,0,0,0, 0), upper=c(5,2,1,5, 1) )
+
+#opt<- optim(par=c(1,0.001,0.1,1, scale.est), fn=errs, NULL, method=c("BFGS") )
 
 #store output and fits
 opts[expt,2,]<- c(opt$par[1:4], 0, opt$par[5])
@@ -193,8 +225,13 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
   return(totalerror)
 }
 
+#opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("L-BFGS-B"), 
+#            lower=c(0,0.0001,0,1,0), upper=c(2,0.1,1,3,1) )
+
 opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0,0.0001,0,1,0), upper=c(2,0.1,1,3,1) )
+            lower=c(0,0,0,0,0), upper=c(5,2,1,5,1) )
+
+#opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("BFGS") )
 
 #store output and fits
 opts[expt,3,]<- c(opt$par, scale.est)
@@ -213,14 +250,19 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
   return(totalerror)
 }
 
+#opt<- optim(par=c(0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
+#            lower=c(0.0001,0,1), upper=c(0.1,1,3) )
+
 opt<- optim(par=c(0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0.0001,0,1), upper=c(0.1,1,3) )
+            lower=c(0.00001,0,1), upper=c(0.1,1,3) )
+
+#opt<- optim(par=c(0.001,0.1,1), fn=errs, NULL, method=c("BFGS") )
 
 #store output and fits
 opts[expt,4,]<- c(0, opt$par, 0, scale.est)
 fit[expt,4,]<- c(opt$value, opt$convergence)
 
-#5. drop c2 with floor for damage c2=0.0005
+#5. drop c2 with floor for damage c2=0.000001
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
   totalerror=0
   treats=unique(temps$treatment)
@@ -233,36 +275,70 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
   return(totalerror)
 }
 
-opt<- optim(par=c(1,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0,0,1), upper=c(2,1,3) )
+#opt<- optim(par=c(1,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
+#            lower=c(0,0,1), upper=c(2,1,3) )
 
+opt<- optim(par=c(1,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
+            lower=c(0,0,0), upper=c(5,1,5) )
+
+#opt<- optim(par=c(1,0.1,1), fn=errs, NULL, method=c("BFGS"), hessian=TRUE )
+
+#95% CI
+n <- nrow(temps.all[temps.all$expt==expt,])
+opt$par - 1.96*sqrt(diag(solve(opt$hessian)))/n # lower limit for 95% confint
+opt$par + 1.96*sqrt(diag(solve(opt$hessian)))/n # upper limit for 95% confint
 
 #store output and fits
-opts[expt,5,]<- c(opt$par[1], 0.0005, opt$par[2:3], 0, scale.est)
+opts[expt,5,]<- c(opt$par[1], 0.000001, opt$par[2:3], 0, scale.est)
 fit[expt,5,]<- c(opt$value, opt$convergence)
+
+#6. fit scale and tp
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,]){  
+  totalerror=0
+  treats=unique(temps$treatment)
+  for(i in 1:length(treats)){
+    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4], tp=x[5], scale=x[6])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
+    totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
+  }
+  return(totalerror)
+}
+
+opt<- optim(par=c(1,0.001,0.1,1, 0,scale.est), fn=errs, NULL, method=c("L-BFGS-B"), 
+            lower=c(0,0,0,0,0,0), upper=c(5,2,1,5,1,1) )
+
+#opt<- optim(par=c(1,0.001,0.1,1, 0, scale.est), fn=errs, NULL, method=c("BFGS") )
+
+#store output and fits
+opts[expt,2,]<- c(opt$par[1:4], 0, opt$par[5])
+fit[expt,2,]<- c(opt$value, opt$convergence)
 
 } #end loop experiments
 
 #Construct table
-expt1<- cbind(expt="1", scenario=1:5, opts[1,,], fit[1,,])
-expt2<- cbind(expt="2", scenario=1:5, opts[2,,], fit[2,,])
-expt3<- cbind(expt="3", scenario=1:5, opts[3,,], fit[3,,])
+expt1<- cbind(expt="1", scenario=1:6, opts[1,,], fit[1,,])
+expt2<- cbind(expt="2", scenario=1:6, opts[2,,], fit[2,,])
+expt3<- cbind(expt="3", scenario=1:6, opts[3,,], fit[3,,])
 out<- rbind(expt1, expt2, expt3)
 colnames(out)[3:ncol(out)]<- c("c1","c2","c3","c4","tp","scale","AIC","converge?")
 out<- as.data.frame(out)
 out[,2:8]<- round(as.numeric(unlist(out[,2:8])), 4)
 out[9]<- round(as.numeric(unlist(out[9])),0)
 #save output
-setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
+#setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
+setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
 write.csv(out, "opts.csv")
 
+#optimization options
+#efficient package: https://cran.r-project.org/web/packages/lbfgs/vignettes/Vignette.pdf
+#https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/
+  
 #=====================
 #plot performance with values
 
 expt<- 3
 #scen: #1. baseline; 2. fit scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scen<- 1
+scen<- 3
 
 temps.expt<- temps.all[temps.all$expt==expt,]
 
@@ -397,8 +473,8 @@ if(expt==3){
 }
 
 #write out plot
-setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
-#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
+#setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
+setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
 
 if(expt==1){
   pdf("AphidsExpt1.pdf",height = 14, width = 5)
