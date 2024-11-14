@@ -163,28 +163,6 @@ opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"),
 
 #opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("BFGS") )
 
-#---
-# #TRY EST ALL
-# errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,]){  
-#   totalerror=0
-#   treats=unique(temps$treatment)
-#   for(i in 1:length(treats)){
-#     delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0.000001,c3=x[2],c4=x[3],scale=x[4])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
-#     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
-#     totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
-#   }
-#   return(totalerror)
-# }
-# 
-# opt<- optim(par=c(1,0.5,1, scale.est), fn=errs, NULL, method=c("BFGS") )
-# 
-# #store output and fits
-# opts[expt,1,]<- c(opt$par[1], 0, opt$par[2:3], 0, opt$par[4])
-# fit[expt,1,]<- c(opt$value, opt$convergence)
-# 
-# } ######END LOOP EXPT
-#---
-
 opts[expt,1,]<- c(opt$par[1:4], 0, scale.est)
 fit[expt,1,]<- c(opt$value, opt$convergence)
 
