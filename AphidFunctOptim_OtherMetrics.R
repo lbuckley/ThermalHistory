@@ -18,9 +18,55 @@ setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/ou
 temps.all<- read.csv("TempTimeSeries.csv")
 PerfDat<- read.csv("PerformanceData.csv")
 
-#fedundity TPC
+#Other TPCs
+#"NymphDur"  "BirthDur"  "dev_rate"  "survival" "mean_Ro"   "mean_rm"  
+
+#Ma et al. 2021. Are extreme high temperatures at low or high latitudes more likely to inhibit the population growth of a globally distributed aphid?
+#https://doi.org/10.1016/j.jtherbio.2021.102936
+#aphid Rhopalosiphum padi
+#Reproductive rate (nymphs/adult/day)
+Rr= function(T, a=0.263, b=3.7, T0 =30.1) exp(a*T)-exp(a*T0-(T0-T)/b)
+
+#Constant rate TPCs
 #Zhao et al 2013
 #https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/1365-2656.12196
+
+#https://journals.biologists.com/jeb/article/218/14/2289/14375/Daily-temperature-extremes-play-an-important-role
+
+#-------------
+#Constant rate TPCs
+#development rate
+#chinese clones
+dr.c= function(T, Tmax=34.09, a=0.13, b=4.43, c=7.65) {
+  dr=exp(a*T)-exp(b-(Tmax-T)/c)
+  dr[dr<0]<- 0
+  return(dr)
+}
+
+#European clones
+dr= function(T, Tmax=32.91, a=0.13, b=4.28, c=7.65) exp(a*T)-exp(b-(Tmax-T)/c)
+
+#survival
+sur= function(T, a=345.51, b=0.35) {
+  sur=1-T/(a-b*T^2)
+  sur[T>30]<- 0
+  return(sur)
+}
+
+long= function(T, a=32.73, b= -0.91) 
+{
+  lon= a + b*T
+  lon[lon<0]<- 0
+  return(lon)
+}
+
+fec= function(T, a= -69.1, b=12.49, c= -0.34){
+  fec=a +b*T +c*T^2
+  fec[fec<0]<- 0
+  return(fec)
+}
+
+#fedundity TPC
 fec= function(T, a= -69.1, b=12.49, c= -0.34){
   fec=a +b*T +c*T^2
   fec[fec<0]<- 0
@@ -33,6 +79,7 @@ topt<- ts[which.max(ft)]
 ctmax= ts[which(ft[120:length(ft)]==0)[1]+120]
 ctmin= ts[which(ft>0)[1]-1]
 
+#====================
 #FUNCTIONS
 #damage
 # tp: threshold for damage between Topt and CTmax; Tdamage= Topt + (CTmax-Topt)*tp
@@ -40,6 +87,10 @@ ctmin= ts[which(ft>0)[1]-1]
 # c2: linear increase in damage
 # c3: magnitude of repair
 # c4: breadth of repair function around Topt
+
+#performance metric
+pms<- c("dr", "sur", "long", "fec")
+pm.ind<- 1
 
 #old damage functions
 #damagenew= damage + dt * exp(-Ea/(R*(T+273.15))) *10^9* (c1*damage + c2) + dt*c3
@@ -59,34 +110,48 @@ return(damage.p)
 }
 
 #compute performance
-perf<- function(series,c1,c2,c3,c4,tp=0,scale)  {
+perf<- function(pm, series,c1,c2,c3,c4,tp=0,scale)  {
   p=NA
   damage=0
   for(i in 1:length(series)){
     damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
-    p= fec(series[i])*(1-damage)
+    
+    if(pm=="dr") p= dr(series[i])*(1-damage)
+    if(pm=="sur") p= sur(series[i])*(1-damage)
+    if(pm=="long") p= log(series[i])*(1-damage)
+    if(pm=="fec") p= fec(series[i])*(1-damage)
+    
     if(i==1) perf.all=p*scale
     if(i>1) perf.all=c(perf.all, p*scale)
   }
   return(perf.all)
 }
 
-perf.nodamage<- function(series,scale)  {
+perf.nodamage<- function(pm, series,scale)  {
   perf=NA
   for(i in 1:length(series)){
-    perf= fec(series[i])
+    if(pm=="dr") perf= dr(series[i])
+    if(pm=="sur") perf= sur(series[i])
+    if(pm=="long") perf= log(series[i])
+    if(pm=="fec") perf= fec(series[i])
+    
     if(i==1) perf.all=perf*scale
     if(i>1) perf.all=c(perf.all, perf*scale)
   }
   return(perf.all)
 }
 
-computeperf<- function(series,c1,c2,c3,c4,tp=0,scale,printdam=FALSE)  {
+computeperf<- function(pm, series,c1,c2,c3,c4,tp=0,scale,printdam=FALSE)  {
   p=0
   damage=0
   for(i in 1:length(series)){
+    if(pm==1) perf= dr(series[i])
+    if(pm==2) perf= sur(series[i])
+    if(pm==3) perf= log(series[i])
+    if(pm==4) perf= fec(series[i])
+    
     damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
-  p= p + fec(series[i])*(1-damage)
+  p= p + perf*(1-damage)
   }
 return(p*scale)
 }
@@ -105,7 +170,7 @@ cs<- expand.grid(c1=seq(0, 2, 0.5), c2= seq(0, .01, 0.003), c3= seq(0, 1, 0.25),
 cs<- expand.grid(c1=c(1,2), c2= c(0.00001, 0.001), c3= c(0.2,0.9), c4= c(1, 3), scale= 0.01)
 
 for(k in 1:nrow(cs)){
-  p1= perf(temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
+  p1= perf(pm=pm.ind, temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
   ps= cbind(time=1:length(temps), temps, p1, k, cs[k,])
   if(k==1) ps.all<- ps
   if(k>1) ps.all<- rbind(ps.all, ps)
@@ -118,7 +183,10 @@ funct.fig<- ggplot(data=ps.all, aes(x=time, y =p1, color=c3, lty=factor(c4), gro
 #==================
 #FIT MODEL, compare AIC of different assumptions
 #extract fecundity values
-fecs<- PerfDat[PerfDat$metric=="fecundity",]
+if(pm.ind==1) fecs<- PerfDat[PerfDat$metric=="dev_rate",]
+if(pm.ind==2) fecs<- PerfDat[PerfDat$metric=="survival",]
+if(pm.ind==3) fecs<- PerfDat[PerfDat$metric=="Longevity",]
+if(pm.ind==4) fecs<- PerfDat[PerfDat$metric=="fecundity",]
 
 #compare AICs of fits
 #1. baseline
@@ -143,11 +211,11 @@ scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(fec(temps.all[temps.all$expt
 
 #1. baseline
 #error function
-errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est, pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
   for(i in 1:length(treats)){
-    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
     #totalerror=totalerror + delta^2
     #return( sqrt(totalerror) )
     
@@ -171,11 +239,11 @@ opts[expt,1,]<- c(opt$par[1:4], 0, scale.est)
 fit[expt,1,]<- c(opt$value, opt$convergence)
 
 #2. fit scale
-errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,]){  
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
   for(i in 1:length(treats)){
-    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=x[5])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=x[5])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
     totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
   }
@@ -197,11 +265,11 @@ opts[expt,2,]<- c(opt$par[1:4], 0, opt$par[5])
 fit[expt,2,]<- c(opt$value, opt$convergence)
 
 #3. fit tp
-errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est, pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
   for(i in 1:length(treats)){
-    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=x[5],scale=scale)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=x[5],scale=scale)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
      
     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
     totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
@@ -224,11 +292,11 @@ opts[expt,3,]<- c(opt$par, scale.est)
 fit[expt,3,]<- c(opt$value, opt$convergence)
 
 #4. drop c1
-errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est, pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
   for(i in 1:length(treats)){
-    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],c4=x[3],scale=scale.est)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],c4=x[3],scale=scale.est)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
     
     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
     totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
@@ -251,11 +319,11 @@ opts[expt,4,]<- c(0, opt$par, 0, scale.est)
 fit[expt,4,]<- c(opt$value, opt$convergence)
 
 #5. drop c2 with floor for damage c2=0.000001
-errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est, pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
   for(i in 1:length(treats)){
-    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0.0005,c3=x[2],c4=x[3],scale=scale.est)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0.0005,c3=x[2],c4=x[3],scale=scale.est)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
     
     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
     totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
@@ -283,11 +351,11 @@ opts[expt,5,]<- c(opt$par[1], 0.000001, opt$par[2:3], 0, scale.est)
 fit[expt,5,]<- c(opt$value, opt$convergence)
 
 #6. fit scale and tp
-errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,]){  
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
   for(i in 1:length(treats)){
-    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4], tp=x[5], scale=x[6])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4], tp=x[5], scale=x[6])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
     totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
   }
@@ -302,8 +370,8 @@ opt<- optim(par=c(1,0.001,0.1,1, 0, scale.est), fn=errs, NULL, method=c("BFGS") 
 }
 
 #store output and fits
-opts[expt,6,]<- c(opt$par[1:4], 0, opt$par[5])
-fit[expt,6,]<- c(opt$value, opt$convergence)
+opts[expt,2,]<- c(opt$par[1:4], 0, opt$par[5])
+fit[expt,2,]<- c(opt$value, opt$convergence)
 
 } #end loop experiments
 
@@ -334,8 +402,8 @@ scen<- 3
 
 temps.expt<- temps.all[temps.all$expt==expt,]
 
-p1= perf(temps.expt$temp, c1=opts[expt, scen, 1], c2=opts[expt, scen, 2], c3=opts[expt, scen, 3], c4=opts[expt, scen, 4], tp=opts[expt, scen, 5], scale=opts[expt, scen, 6])
-p1.nd= perf.nodamage(temps.expt$temp, scale=opts[expt, scen, 6])
+p1= perf(pm=pm.ind, temps.expt$temp, c1=opts[expt, scen, 1], c2=opts[expt, scen, 2], c3=opts[expt, scen, 3], c4=opts[expt, scen, 4], tp=opts[expt, scen, 5], scale=opts[expt, scen, 6])
+p1.nd= perf.nodamage(pm=pm.ind, temps.expt$temp, scale=opts[expt, scen, 6])
 
 d1<- data.frame(metric="perf.nd",value=p1.nd, time=temps.expt$time, treatment=temps.expt$treatment) 
 d2<- data.frame(metric="perf",value=p1, time=temps.expt$time, treatment=temps.expt$treatment)
