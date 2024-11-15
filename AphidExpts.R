@@ -67,22 +67,75 @@ temps.all$time<- as.numeric(temps.all$time)
 #-----
 #Assemble performance
 
-#mean metric
+#Fecundity, Longevity
 adat2.p.m= adat2.p %>%
   group_by(NTmin) %>%
-  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Fecundity, na.rm = TRUE), fec.rate=mean(Fecundity.rate, na.rm = TRUE) )
+  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Fecundtiy, na.rm = TRUE), fec.rate=mean(Fecundity.rate, na.rm = TRUE) )
 
 #to long format
 adat2.p.l<- melt(adat2.p.m, id.vars = c("NTmin"), variable.name = "metric")
 
-ggplot(data=adat2.p.l, aes(x=NTmin, y =value))+geom_line()+facet_wrap(.~metric)
+#Survival format unclear
+
+#Development format
+adat2.dt.m1= adat2.dt %>%
+  group_by(NTmin1) %>%
+  summarise(dt= mean(X1st_instar, na.rm = TRUE) )
+
+adat2.dt.m2= adat2.dt %>%
+  group_by(NTmin2) %>%
+  summarise(dt= mean(X2nd_instar, na.rm = TRUE) )
+
+adat2.dt.m3= adat2.dt %>%
+  group_by(NTmin3) %>%
+  summarise(dt= mean(X3rd_instar, na.rm = TRUE) )
+
+adat2.dt.m4= adat2.dt %>%
+  group_by(NTmin4) %>%
+  summarise(dt= mean(X4th_instar, na.rm = TRUE) )
+
+adat2.dt.m5= adat2.dt %>%
+  group_by(NTminN) %>%
+  summarise(dt= mean(Nymph, na.rm = TRUE) )
+
+#add stage
+adat2.dt.m1$stage="i1"
+adat2.dt.m2$stage="i2"
+adat2.dt.m3$stage="i3"
+adat2.dt.m4$stage="i4"
+adat2.dt.m5$stage="nymph"
+
+#align names
+colnames(adat2.dt.m1)[1] <- "NTmin"
+colnames(adat2.dt.m2)[1] <- "NTmin"
+colnames(adat2.dt.m3)[1] <- "NTmin"
+colnames(adat2.dt.m4)[1] <- "NTmin"
+colnames(adat2.dt.m5)[1] <- "NTmin"
+
+#combine
+adat2.dt.m<- rbind(adat2.dt.m1, adat2.dt.m2, adat2.dt.m3, adat2.dt.m4, adat2.dt.m5)
+
+#total development time and development rate
+adat2.dt.m1$tdt<- adat2.dt.m1$dt +adat2.dt.m2$dt[match(adat2.dt.m1$NTmin, adat2.dt.m2$NTmin)] +
+  adat2.dt.m3$dt[match(adat2.dt.m1$NTmin, adat2.dt.m3$NTmin)]+adat2.dt.m4$dt[match(adat2.dt.m1$NTmin, adat2.dt.m4$NTmin)]+
+  adat2.dt.m5$dt[match(adat2.dt.m1$NTmin, adat2.dt.m5$NTmin)]
+adat2.dt.m1$dr<- 1/adat2.dt.m1$tdt
+adat2.dt.m1$metric<- "dr"
+adat2.dt.m1$value<- adat2.dt.m1$dr
+#--------
 
 #combine dataframes
 obs<- adat2.p.l[,c("NTmin","metric","value")]
+obs.dt<- adat2.dt.m1[,c("NTmin","metric","value")]
+obs<- rbind(obs, obs.dt)
+
 colnames(obs)[1]<- c("treatment")
 obs$expt<- 1
 
 PerfDat<- obs
+
+#plot
+ggplot(data=PerfDat, aes(x=treatment, y =value))+geom_line()+facet_wrap(.~metric)
 
 #=========================================
 #Expt 2
@@ -155,8 +208,14 @@ temps.all<- rbind(temps.all, temps.l)
 
 #----
 #Traits
+#estimate development time
+adat3.tr$dt= adat3.tr$X1st_instar +adat3.tr$X2ed_instar +adat3.tr$X3rd_instar +adat3.tr$X4th_instar +adat3.tr$NymphDur
+#developmental rate
+adat3.tr$dr= 1/adat3.tr$dt
+
 #to long format
-adat3.l<- melt(adat3.tr[,c(2:7,26:29)], id.vars = c("Treatment","ID","H_C","CycleDays","ContinueNormalDay","ContinueHotday"), variable.name = "metric")
+adat3.l<- melt(adat3.tr[,c("Treatment","ID","H_C","CycleDays","ContinueNormalDay","ContinueHotday","Longevity","Fecundity","BirthDur","dr")], 
+               id.vars = c("Treatment","ID","H_C","CycleDays","ContinueNormalDay","ContinueHotday"), variable.name = "metric")
 adat3.l$ContinueNormalDay <- as.factor(adat3.l$ContinueNormalDay)
 
 #NymphDur, Longevity, Fecundity, BirthDur
@@ -212,7 +271,7 @@ PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt")])
 
 #read data
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
-setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
 #setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
 
 #mild means
@@ -272,32 +331,33 @@ temps.all<- rbind(temps.all, temps.l)
 adat4.var.m= adat4.var %>%
   group_by(Tmean, Tvar, population, metric) %>%
   summarise(value= mean(value))
+#drop NA
+adat4.var.m<- adat4.var.m[-which(is.na(adat4.var.m$value)),]
+
+adat4.var.m$treatment= paste(adat4.var.m$Tmean, adat4.var.m$Tvar, sep="_")
 
 ggplot(data=adat4.var.m, aes(x=Tvar, y =value, color=population))+geom_point()+ geom_line()+
   facet_grid(metric~Tmean, scale="free_y")
 
-#Different means, redundant with adat4.var
-#sum performance
-adat4.mean.m= adat4.mean %>%
-  group_by(Tmean, Tvar, population, metric) %>%
-  summarise(value= mean(value))
-
-ggplot(data=adat4.mean.m, aes(x=Tvar, y =value, color=population))+geom_point()+ geom_line()+
-  facet_grid(metric~Tmean, scale="free_y")
+# #Different means, redundant with adat4.var
+# #sum performance
+# adat4.mean.m= adat4.mean %>%
+#   group_by(Tmean, Tvar, population, metric) %>%
+#   summarise(value= mean(value))
+# 
+# ggplot(data=adat4.mean.m, aes(x=Tvar, y =value, color=population))+geom_point()+ geom_line()+
+#   facet_grid(metric~Tmean, scale="free_y")
 
 #---------------
 #combine performance metrics
 
-#to long format
-r.l<- melt(adat4.r[,c("Tmean","Tvar","population","mean_Ro","mean_rm")], id.vars = c("Tmean","Tvar","population"), variable.name = "metric")
-
-#add popgrowth
-dat.mv<- rbind(adat4.var.m, r.l)
-
-dat.mv$treatment= paste(dat.mv$Tmean, dat.mv$Tvar, sep="_")
+# #to long format
+# r.l<- melt(adat4.r[,c("Tmean","Tvar","population","mean_Ro","mean_rm")], id.vars = c("Tmean","Tvar","population"), variable.name = "metric")
+# #add popgrowth
+# dat.mv<- rbind(adat4.var.m, r.l)
 
 #add performance data
-obs<- dat.mv[,c("treatment","metric","value")]
+obs<- adat4.var.m[,c("treatment","metric","value","population")]
 obs$expt<- 3
 
 #add field to distinguish lab and field
@@ -323,12 +383,18 @@ PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population"
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
 #setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/out/")
 
+PerfDat$metric= as.character(PerfDat$metric)
+
 #align names
 PerfDat$metric[which(PerfDat$metric=="fec")]="fecundity"
 PerfDat$metric[which(PerfDat$metric=="Fecundity")]="fecundity"
 
-PerfDat$metric[which(PerfDat$metric=="lon")]="Longevity"
+PerfDat$metric[which(PerfDat$metric=="lon")]<-"longevity"
+PerfDat$metric[which(PerfDat$metric=="Longevity")]="longevity"
 
+PerfDat$metric[which(PerfDat$metric=="dr")]="dev_rate"
+
+#write out
 write.csv(temps.all, "TempTimeSeries.csv")
 write.csv(PerfDat, "PerformanceData.csv")
 

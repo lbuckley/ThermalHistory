@@ -17,11 +17,9 @@ setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/ou
 
 temps.all<- read.csv("TempTimeSeries.csv")
 PerfDat<- read.csv("PerformanceData.csv")
-#Drop perf NA
-PerfDat<- PerfDat[-which(is.na(PerfDat$value)),]
 
-#Other TPCs
-#"NymphDur"  "BirthDur"  "dev_rate"  "survival" "mean_Ro"   "mean_rm"  
+#-------------
+#TPCs
 
 #Ma et al. 2021. Are extreme high temperatures at low or high latitudes more likely to inhibit the population growth of a globally distributed aphid?
 #https://doi.org/10.1016/j.jtherbio.2021.102936
@@ -30,13 +28,12 @@ PerfDat<- PerfDat[-which(is.na(PerfDat$value)),]
 Rr= function(T, a=0.263, b=3.7, T0 =30.1) exp(a*T)-exp(a*T0-(T0-T)/b)
 
 #Constant rate TPCs
+#English grain aphid, Sitobion avenae
 #Zhao et al 2013
 #https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/1365-2656.12196
 
 #https://journals.biologists.com/jeb/article/218/14/2289/14375/Daily-temperature-extremes-play-an-important-role
 
-#-------------
-#Constant rate TPCs
 #development rate
 #chinese clones
 dr.c= function(T, Tmax=34.09, a=0.13, b=4.43, c=7.65) {
@@ -78,12 +75,6 @@ fec= function(T, a= -69.1, b=12.49, c= -0.34){
   fec[fec<0]<- 0
   return(fec)
 }
-#find Topt and CTmax
-ts=seq(0,40,0.1)
-ft<- fec(ts)
-topt<- ts[which.max(ft)]
-ctmax= ts[which(ft[120:length(ft)]==0)[1]+120]
-ctmin= ts[which(ft>0)[1]-1]
 
 #====================
 #FUNCTIONS
@@ -96,14 +87,26 @@ ctmin= ts[which(ft>0)[1]-1]
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
-pm.ind<- 2
+pm.ind<- 1
 
-#plot
-ts=1:40
-plot(ts, dr(ts))
-plot(ts, sur(ts))
-plot(ts, long(ts))
-plot(ts, fec(ts))
+#find Topt and CTmax
+ts=seq(0,40,0.1)
+
+if(pm.ind==1) ft= dr(ts)
+if(pm.ind==2) ft= sur(ts)
+if(pm.ind==3) ft= long(ts) 
+if(pm.ind==4) ft= fec(ts) 
+
+ft<- fec(ts)
+topt<- ts[which.max(ft)]
+ctmax= ts[which(ft[120:length(ft)]==0)[1]+120]
+ctmin= ts[which(ft>0)[1]-1]
+
+# #plot
+# plot(ts, dr(ts))
+# plot(ts, sur(ts))
+# plot(ts, long(ts))
+# plot(ts, fec(ts))
 
 #old damage functions
 #damagenew= damage + dt * exp(-Ea/(R*(T+273.15))) *10^9* (c1*damage + c2) + dt*c3
@@ -222,8 +225,12 @@ for(expt in 1:3){
 if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   
 #estimate scale as max of performance
-scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(fec(temps.all[temps.all$expt==expt,"temp"]))/length(unique(fecs[fecs$expt==expt,"treatment"])))
-#-----------
+  if(pm.ind==1) scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(dr(temps.all[temps.all$expt==expt,"temp"]))/length(unique(fecs[fecs$expt==expt,"treatment"])))
+  if(pm.ind==2) scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(sur(temps.all[temps.all$expt==expt,"temp"]))/length(unique(fecs[fecs$expt==expt,"treatment"])))
+  if(pm.ind==3) scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(long(temps.all[temps.all$expt==expt,"temp"]))/length(unique(fecs[fecs$expt==expt,"treatment"])))
+  if(pm.ind==4) scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(fec(temps.all[temps.all$expt==expt,"temp"]))/length(unique(fecs[fecs$expt==expt,"treatment"])))
+
+  #-----------
 #optimize
 
 #1. baseline
@@ -417,12 +424,13 @@ opt<- optim(par=c(1,0.001,0.1,1, 0, scale.est), fn=errs, NULL, method=c("BFGS") 
 }
 
 #store output and fits
-opts[expt,2,]<- c(opt$par[1:4], 0, opt$par[5])
-fit[expt,2,]<- c(opt$value, opt$convergence)
+opts[expt,6,]<- c(opt$par[1:4], 0, opt$par[5])
+fit[expt,6,]<- c(opt$value, opt$convergence)
 
 } #end check data exist
 } #end loop experiments
 
+#====================
 #Construct table
 expt1<- cbind(expt="1", scenario=1:6, opts[1,,], fit[1,,])
 expt2<- cbind(expt="2", scenario=1:6, opts[2,,], fit[2,,])
@@ -435,7 +443,7 @@ out[9]<- round(as.numeric(unlist(out[9])),0)
 #save output
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
 #setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
-out_file <- paste("out_", pm.ind, ".csv", sep="")
+out_file <- paste("out_", pms[pm.ind], ".csv", sep="")
 write.csv(out, out_file)
 
 #optimization options
@@ -447,7 +455,7 @@ write.csv(out, out_file)
 
 expt<- 3
 #scen: #1. baseline; 2. fit scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scen<- 1
+scen<- 2
 
 temps.expt<- temps.all[temps.all$expt==expt,]
 
@@ -586,7 +594,7 @@ setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/fi
 #setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
 
 if(expt==1){
-  out_file <- paste("AphidsExpt1_", pm.ind, ".pdf", sep="")
+  out_file <- paste("AphidsExpt1_", pms[pm.ind], ".pdf", sep="")
   
   pdf(out_file,height = 14, width = 5)
   print(plot1.expt1 +plot2.expt1 +plot_layout(ncol=1, heights = c(3, 1))+ plot_annotation(tag_levels = 'A') )
@@ -594,7 +602,7 @@ if(expt==1){
   }
 
 if(expt==2){
-  out_file <- paste("AphidsExpt2_", pm.ind, ".pdf", sep="")
+  out_file <- paste("AphidsExpt2_", pms[pm.ind], ".pdf", sep="")
   
   pdf(out_file,height = 14, width = 14)
   print(plot1.expt2 +plot2.expt2 +plot_layout(ncol=1, heights = c(3, 1)) + plot_annotation(tag_levels = 'A'))
@@ -602,7 +610,7 @@ if(expt==2){
   }
 
 if(expt==3){
-  out_file <- paste("AphidsExpt3_", pm.ind, ".pdf", sep="")
+  out_file <- paste("AphidsExpt3_", pms[pm.ind], ".pdf", sep="")
   
   pdf(out_file,height = 14, width = 14)
   print(plot1.expt3 +plot2.expt3 +plot_layout(ncol=1, heights = c(3, 1)) + plot_annotation(tag_levels = 'A'))
