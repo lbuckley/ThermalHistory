@@ -17,6 +17,8 @@ setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/ou
 
 temps.all<- read.csv("TempTimeSeries.csv")
 PerfDat<- read.csv("PerformanceData.csv")
+#Drop perf NA
+PerfDat<- PerfDat[-which(is.na(PerfDat$value)),]
 
 #Other TPCs
 #"NymphDur"  "BirthDur"  "dev_rate"  "survival" "mean_Ro"   "mean_rm"  
@@ -44,7 +46,11 @@ dr.c= function(T, Tmax=34.09, a=0.13, b=4.43, c=7.65) {
 }
 
 #European clones
-dr= function(T, Tmax=32.91, a=0.13, b=4.28, c=7.65) exp(a*T)-exp(b-(Tmax-T)/c)
+dr= function(T, Tmax=32.91, a=0.13, b=4.28, c=7.65){ 
+  d=exp(a*T)-exp(b-(Tmax-T)/c)
+  d[d<0]<- 0
+  return(d)
+}
 
 #survival
 sur= function(T, a=345.51, b=0.35) {
@@ -90,7 +96,14 @@ ctmin= ts[which(ft>0)[1]-1]
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
-pm.ind<- 1
+pm.ind<- 2
+
+#plot
+ts=1:40
+plot(ts, dr(ts))
+plot(ts, sur(ts))
+plot(ts, long(ts))
+plot(ts, fec(ts))
 
 #old damage functions
 #damagenew= damage + dt * exp(-Ea/(R*(T+273.15))) *10^9* (c1*damage + c2) + dt*c3
@@ -116,10 +129,10 @@ perf<- function(pm, series,c1,c2,c3,c4,tp=0,scale)  {
   for(i in 1:length(series)){
     damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
     
-    if(pm=="dr") p= dr(series[i])*(1-damage)
-    if(pm=="sur") p= sur(series[i])*(1-damage)
-    if(pm=="long") p= log(series[i])*(1-damage)
-    if(pm=="fec") p= fec(series[i])*(1-damage)
+    if(pm==1) p= dr(series[i])*(1-damage)
+    if(pm==2) p= sur(series[i])*(1-damage)
+    if(pm==3) p= long(series[i])*(1-damage)
+    if(pm==4) p= fec(series[i])*(1-damage)
     
     if(i==1) perf.all=p*scale
     if(i>1) perf.all=c(perf.all, p*scale)
@@ -127,13 +140,15 @@ perf<- function(pm, series,c1,c2,c3,c4,tp=0,scale)  {
   return(perf.all)
 }
 
+#perf(pm=pm.ind, series=temps[,"temp"], c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
+
 perf.nodamage<- function(pm, series,scale)  {
   perf=NA
   for(i in 1:length(series)){
-    if(pm=="dr") perf= dr(series[i])
-    if(pm=="sur") perf= sur(series[i])
-    if(pm=="long") perf= log(series[i])
-    if(pm=="fec") perf= fec(series[i])
+    if(pm==1) perf= dr(series[i])
+    if(pm==2) perf= sur(series[i])
+    if(pm==3) perf= long(series[i])
+    if(pm==4) perf= fec(series[i])
     
     if(i==1) perf.all=perf*scale
     if(i>1) perf.all=c(perf.all, perf*scale)
@@ -147,7 +162,7 @@ computeperf<- function(pm, series,c1,c2,c3,c4,tp=0,scale,printdam=FALSE)  {
   for(i in 1:length(series)){
     if(pm==1) perf= dr(series[i])
     if(pm==2) perf= sur(series[i])
-    if(pm==3) perf= log(series[i])
+    if(pm==3) perf= long(series[i])
     if(pm==4) perf= fec(series[i])
     
     damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
@@ -203,9 +218,11 @@ fit= array(NA, dim=c(3,6,2), dimnames = list(c("expt", "scenario","fit"))) #aic 
 #loop through 3 experiments
 for(expt in 1:3){
 
-#estimate scale as max of fecundity
+#check that data exist
+if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
+  
+#estimate scale as max of performance
 scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(fec(temps.all[temps.all$expt==expt,"temp"]))/length(unique(fecs[fecs$expt==expt,"treatment"])))
-
 #-----------
 #optimize
 
@@ -214,6 +231,11 @@ scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(fec(temps.all[temps.all$expt
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est, pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
+  
+  #drop scenarios without data
+  if(pm==2 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  if(pm==3 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  
   for(i in 1:length(treats)){
     delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
     #totalerror=totalerror + delta^2
@@ -221,7 +243,7 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
     
     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
     totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
-  }
+     }
   return(totalerror)
 }
 
@@ -242,6 +264,11 @@ fit[expt,1,]<- c(opt$value, opt$convergence)
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
+  
+  #drop scenarios without data
+  if(pm==2 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  if(pm==3 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  
   for(i in 1:length(treats)){
     delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=x[5])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
@@ -268,6 +295,11 @@ fit[expt,2,]<- c(opt$value, opt$convergence)
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est, pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
+  
+  #drop scenarios without data
+  if(pm==2 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  if(pm==3 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  
   for(i in 1:length(treats)){
     delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=x[5],scale=scale)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
      
@@ -295,6 +327,11 @@ fit[expt,3,]<- c(opt$value, opt$convergence)
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est, pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
+  
+  #drop scenarios without data
+  if(pm==2 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  if(pm==3 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  
   for(i in 1:length(treats)){
     delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],c4=x[3],scale=scale.est)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
     
@@ -322,6 +359,11 @@ fit[expt,4,]<- c(opt$value, opt$convergence)
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est, pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
+  
+  #drop scenarios without data
+  if(pm==2 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  if(pm==3 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  
   for(i in 1:length(treats)){
     delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0.0005,c3=x[2],c4=x[3],scale=scale.est)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
     
@@ -354,6 +396,11 @@ fit[expt,5,]<- c(opt$value, opt$convergence)
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], pm=pm.ind){  
   totalerror=0
   treats=unique(temps$treatment)
+  
+  #drop scenarios without data
+  if(pm==2 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  if(pm==3 && expt==3) treats<- c("22_0", "22_5", "22_9", "22_13", "28_0", "30_0", "32_0")
+  
   for(i in 1:length(treats)){
     delta=computeperf(pm=pm, series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4], tp=x[5], scale=x[6])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
@@ -373,6 +420,7 @@ opt<- optim(par=c(1,0.001,0.1,1, 0, scale.est), fn=errs, NULL, method=c("BFGS") 
 opts[expt,2,]<- c(opt$par[1:4], 0, opt$par[5])
 fit[expt,2,]<- c(opt$value, opt$convergence)
 
+} #end check data exist
 } #end loop experiments
 
 #Construct table
@@ -385,9 +433,10 @@ out<- as.data.frame(out)
 out[,2:8]<- round(as.numeric(unlist(out[,2:8])), 4)
 out[9]<- round(as.numeric(unlist(out[9])),0)
 #save output
-#setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
-write.csv(out, "opts.csv")
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
+out_file <- paste("out_", pm.ind, ".csv", sep="")
+write.csv(out, out_file)
 
 #optimization options
 #efficient package: https://cran.r-project.org/web/packages/lbfgs/vignettes/Vignette.pdf
@@ -398,7 +447,7 @@ write.csv(out, "opts.csv")
 
 expt<- 3
 #scen: #1. baseline; 2. fit scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scen<- 3
+scen<- 1
 
 temps.expt<- temps.all[temps.all$expt==expt,]
 
@@ -470,7 +519,7 @@ if(expt==1){
   d1.agg<- rbind(d1.agg, fdat)
   
   plot2.expt1= ggplot(data=d1.agg, aes(x=treatment, y =value, color=metric, group=metric))+geom_point(size=2)+geom_line(lwd=1.5)+
-  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)
+  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")
 }
   
 if(expt==2){
@@ -491,7 +540,7 @@ if(expt==2){
   
   plot2.expt2= ggplot(data=d1.agg[d1.agg$first==1,], aes(x=normaldays, y =value, color=metric, group=metric))+geom_point(size=2)+geom_line(lwd=1.5)+
     facet_grid(.~hotdays, scale="free_y", switch="y")+
-  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)
+  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")
   #put other first in supplement
 }
 
@@ -529,27 +578,33 @@ if(expt==3){
   
   plot2.expt3= ggplot(data=d1.agg, aes(x=treat, y =value, color=metric, group=group, lty=var))+geom_point(size=2)+geom_line(lwd=1.5)+
     facet_grid(.~expt, scale="free", switch="y")+
-    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)
+    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")
 }
 
 #write out plot
-#setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
-setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
 
 if(expt==1){
-  pdf("AphidsExpt1.pdf",height = 14, width = 5)
+  out_file <- paste("AphidsExpt1_", pm.ind, ".pdf", sep="")
+  
+  pdf(out_file,height = 14, width = 5)
   print(plot1.expt1 +plot2.expt1 +plot_layout(ncol=1, heights = c(3, 1))+ plot_annotation(tag_levels = 'A') )
   dev.off()
   }
 
 if(expt==2){
-  pdf("AphidsExpt2.pdf",height = 14, width = 14)
+  out_file <- paste("AphidsExpt2_", pm.ind, ".pdf", sep="")
+  
+  pdf(out_file,height = 14, width = 14)
   print(plot1.expt2 +plot2.expt2 +plot_layout(ncol=1, heights = c(3, 1)) + plot_annotation(tag_levels = 'A'))
   dev.off()
   }
 
 if(expt==3){
-  pdf("AphidsExpt3.pdf",height = 14, width = 14)
+  out_file <- paste("AphidsExpt3_", pm.ind, ".pdf", sep="")
+  
+  pdf(out_file,height = 14, width = 14)
   print(plot1.expt3 +plot2.expt3 +plot_layout(ncol=1, heights = c(3, 1)) + plot_annotation(tag_levels = 'A'))
   dev.off()
   }

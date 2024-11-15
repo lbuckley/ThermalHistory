@@ -302,6 +302,7 @@ opt<- optim(par=c(1,0.001,0.1,1, 0, scale.est), fn=errs, NULL, method=c("BFGS") 
 }
 
 #store output and fits
+#not converging, drop scenario
 opts[expt,6,]<- c(opt$par[1:4], 0, opt$par[5])
 fit[expt,6,]<- c(opt$value, opt$convergence)
 
@@ -312,13 +313,13 @@ expt1<- cbind(expt="1", scenario=1:6, opts[1,,], fit[1,,])
 expt2<- cbind(expt="2", scenario=1:6, opts[2,,], fit[2,,])
 expt3<- cbind(expt="3", scenario=1:6, opts[3,,], fit[3,,])
 out<- rbind(expt1, expt2, expt3)
-colnames(out)[3:ncol(out)]<- c("c1","c2","c3","c4","tp","scale","AIC","converge?")
+colnames(out)[3:ncol(out)]<- c("d_mult","d_linear","r_mag","r_breadth","tp","scale","AIC","converge?")
 out<- as.data.frame(out)
 out[,2:8]<- round(as.numeric(unlist(out[,2:8])), 4)
 out[9]<- round(as.numeric(unlist(out[9])),0)
 #save output
-#setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
 write.csv(out, "opts.csv")
 
 #optimization options
@@ -328,7 +329,7 @@ write.csv(out, "opts.csv")
 #=====================
 #plot performance with values
 
-expt<- 3
+expt<- 1
 #scen: #1. baseline; 2. fit scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
 scen<- 3
 
@@ -402,7 +403,8 @@ if(expt==1){
   d1.agg<- rbind(d1.agg, fdat)
   
   plot2.expt1= ggplot(data=d1.agg, aes(x=treatment, y =value, color=metric, group=metric))+geom_point(size=2)+geom_line(lwd=1.5)+
-  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)
+  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")+
+    guides(colour = guide_legend(nrow = 3))
 }
   
 if(expt==2){
@@ -423,7 +425,7 @@ if(expt==2){
   
   plot2.expt2= ggplot(data=d1.agg[d1.agg$first==1,], aes(x=normaldays, y =value, color=metric, group=metric))+geom_point(size=2)+geom_line(lwd=1.5)+
     facet_grid(.~hotdays, scale="free_y", switch="y")+
-  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)
+  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")
   #put other first in supplement
 }
 
@@ -461,12 +463,12 @@ if(expt==3){
   
   plot2.expt3= ggplot(data=d1.agg, aes(x=treat, y =value, color=metric, group=group, lty=var))+geom_point(size=2)+geom_line(lwd=1.5)+
     facet_grid(.~expt, scale="free", switch="y")+
-    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)
+    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")
 }
 
 #write out plot
-#setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
-setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
 
 if(expt==1){
   pdf("AphidsExpt1.pdf",height = 14, width = 5)
