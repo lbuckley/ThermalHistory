@@ -69,7 +69,7 @@ fec= function(T, a= -69.1, b=12.49, c= -0.34){
   return(fec)
 }
 
-#fedundity TPC
+#fedundity TPC (nymphs/adult)
 fec= function(T, a= -69.1, b=12.49, c= -0.34){
   fec=a +b*T +c*T^2
   fec[fec<0]<- 0
@@ -87,7 +87,7 @@ fec= function(T, a= -69.1, b=12.49, c= -0.34){
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
-pm.ind<- 1
+pm.ind<- 3
 
 #find Topt and CTmax
 ts=seq(0,40,0.1)
@@ -203,7 +203,7 @@ funct.fig<- ggplot(data=ps.all, aes(x=time, y =p1, color=c3, lty=factor(c4), gro
 #extract fecundity values
 if(pm.ind==1) fecs<- PerfDat[PerfDat$metric=="dev_rate",]
 if(pm.ind==2) fecs<- PerfDat[PerfDat$metric=="survival",]
-if(pm.ind==3) fecs<- PerfDat[PerfDat$metric=="Longevity",]
+if(pm.ind==3) fecs<- PerfDat[PerfDat$metric=="longevity",]
 if(pm.ind==4) fecs<- PerfDat[PerfDat$metric=="fecundity",]
 
 #compare AICs of fits
@@ -453,9 +453,9 @@ write.csv(out, out_file)
 #=====================
 #plot performance with values
 
-expt<- 3
+expt<- 2
 #scen: #1. baseline; 2. fit scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scen<- 2
+scen<- 6
 
 temps.expt<- temps.all[temps.all$expt==expt,]
 
@@ -527,7 +527,7 @@ if(expt==1){
   d1.agg<- rbind(d1.agg, fdat)
   
   plot2.expt1= ggplot(data=d1.agg, aes(x=treatment, y =value, color=metric, group=metric))+geom_point(size=2)+geom_line(lwd=1.5)+
-  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")
+  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))
 }
   
 if(expt==2){
@@ -616,5 +616,17 @@ if(expt==3){
   print(plot1.expt3 +plot2.expt3 +plot_layout(ncol=1, heights = c(3, 1)) + plot_annotation(tag_levels = 'A'))
   dev.off()
   }
+
+#------------------------------------
+#Plot developmental rate comparisons
+
+#write out plot
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
+
+pdf("Fig_DevRate.pdf",height = 14, width = 5)
+  print(plot2.expt1 +plot2.expt2 +plot2.expt3 +plot_layout(ncol=1, heights = c(1, 1, 1))+ plot_annotation(tag_levels = 'A') )
+dev.off()
+
 
 

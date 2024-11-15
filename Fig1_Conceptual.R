@@ -31,6 +31,13 @@ topt<- ts[which.max(ft)]
 ctmax= ts[which(ft[120:length(ft)]==0)[1]+120]
 ctmin= ts[which(ft>0)[1]-1]
 
+#Dev rate
+dr= function(T, Tmax=32.91, a=0.13, b=4.28, c=7.65){ 
+  d=exp(a*T)-exp(b-(Tmax-T)/c)
+  d[d<0]<- 0
+  return(d)
+}
+
 #FUNCTIONS
 #damage
 # tp: threshold for damage between Topt and CTmax; Tdamage= Topt + (CTmax-Topt)*tp
@@ -120,20 +127,19 @@ for(k in 1:nrow(cs)){
 
 #----------------
 
-fec= function(T, a= -69.1, b=12.49, c= -0.34){
-  fec=a +b*T +c*T^2
-  fec[fec<0]<- 0
-  return(fec)
-}
-
-#----------------
 #plot tpc, etc
 ts=seq(0,40,0.1)
 
+#performance metric
+pms<- c("dr", "sur", "long", "fec")
+pm.ind<- 1
+
 #fecundity
-fs= fec(ts) 
+if(pm.ind==1) fs= dr(ts) 
+if(pm.ind==4) fs= fec(ts) 
 cdat<- as.data.frame(cbind(temp=ts,value=fs,type="fecundity", c1=0, c2=0, c3=0, c4=0, group=1))
 
+if(pm.ind==1){
 perf_wd<- function(T, c1, c2, tp=0, damage.p, Topt=18.4, CTmax=30.1, dt=1) {
   Tdamage= Topt + (CTmax-Topt)*tp
   Tdif= T-Tdamage
@@ -141,8 +147,22 @@ perf_wd<- function(T, c1, c2, tp=0, damage.p, Topt=18.4, CTmax=30.1, dt=1) {
   damage.p1= damage.p + dt*Tdif*(c1*damage.p + c2) 
   damage.p1[which(damage.p1<0)]<-0
   damage.p1[which(damage.p1>1)]<-1
-  p= fec(T)*(1-damage.p1)
+  p= dr(T)*(1-damage.p1)
   return(p)
+}
+}
+
+if(pm.ind==4){
+  perf_wd<- function(T, c1, c2, tp=0, damage.p, Topt=18.4, CTmax=30.1, dt=1) {
+    Tdamage= Topt + (CTmax-Topt)*tp
+    Tdif= T-Tdamage
+    Tdif[which(Tdif<0)]<- 0
+    damage.p1= damage.p + dt*Tdif*(c1*damage.p + c2) 
+    damage.p1[which(damage.p1<0)]<-0
+    damage.p1[which(damage.p1>1)]<-1
+    p= fec(T)*(1-damage.p1)
+    return(p)
+  }
 }
 
 ddat<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.01, c2=0.001, tp=0, damage.p=0.01), type="damage", c1=0.01, c2=0.001, c3=0, c4=0, group=1.1))
@@ -179,6 +199,9 @@ f.fig<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=temp, y =value, 
   scale_colour_brewer(palette = "Dark2") +
   theme(legend.position = "bottom",  legend.box = 'vertical')+theme(legend.spacing.y = unit(3, "pt"))+
   labs(colour="d_mult", lty="d_linear")
+
+if(pm.ind==1) {dr.fig<-f.fig; dr.fig= dr.fig+ylab("Development Rate (1/days)")}
+if(pm.ind==4) {fec.fig<-f.fig; fec.fig= fec.fig+ylab("Fecundity") }
 
 #damage
 d.fig= ggplot(data=pdat[which(pdat$type=="damage"),], aes(x=temp, y =value, color=factor(c1), lty=factor(c2), group=group))+
@@ -250,22 +273,26 @@ pr.fig.ts<- ggplot(data=pdat[which(pdat$type=="perf repair"),], aes(x=time, y =v
   
 #---
 layout <- '
-ABC
-ABC
-DDD
-EEE
-EEE
-FFF
-FFF
+AAA
+BBB
+BBB
+CCC
+CCC
 '
 
 #plot
 setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
 #setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
 
-pdf("Fig1_Function.pdf",height = 12, width = 9)
-f.fig +d.fig +r.fig + 
+pdf("Fig1_Function.pdf",height = 9, width = 9)
+(fec.fig + dr.fig) / (d.fig +r.fig) + 
+ plot_annotation(tag_levels = 'A')
+dev.off()
+
+pdf("Fig2_Function.pdf",height = 9, width = 9)
   t.fig.ts +f.fig.ts +pr.fig.ts +
   plot_layout(design = layout) + plot_annotation(tag_levels = 'A')
 dev.off()
+
+
 
