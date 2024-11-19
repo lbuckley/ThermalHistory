@@ -80,10 +80,10 @@ fec= function(T, a= -69.1, b=12.49, c= -0.34){
 #FUNCTIONS
 #damage
 # tp: threshold for damage between Topt and CTmax; Tdamage= Topt + (CTmax-Topt)*tp
-# c1: multiplicative change in damage
-# c2: linear increase in damage
-# c3: magnitude of repair
-# c4: breadth of repair function around Topt
+# c1: d_mult: multiplicative change in damage
+# c2: d_linear: linear increase in damage
+# c3: r_mag: magnitude of repair
+# c4: r_breadth: breadth of repair function around Topt
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")

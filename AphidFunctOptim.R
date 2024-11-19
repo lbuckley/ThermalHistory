@@ -36,10 +36,10 @@ ctmin= ts[which(ft>0)[1]-1]
 #FUNCTIONS
 #damage
 # tp: threshold for damage between Topt and CTmax; Tdamage= Topt + (CTmax-Topt)*tp
-# c1: multiplicative change in damage
-# c2: linear increase in damage
-# c3: magnitude of repair
-# c4: breadth of repair function around Topt
+# c1: d_mult: multiplicative change in damage
+# c2: d_linear: linear increase in damage
+# c3: r_mag: magnitude of repair
+# c4: r_breadth: breadth of repair function around Topt
 
 #old damage functions
 #damagenew= damage + dt * exp(-Ea/(R*(T+273.15))) *10^9* (c1*damage + c2) + dt*c3
@@ -121,22 +121,21 @@ funct.fig<- ggplot(data=ps.all, aes(x=time, y =p1, color=c3, lty=factor(c4), gro
 fecs<- PerfDat[PerfDat$metric=="fecundity",]
 
 #compare AICs of fits
-#1. baseline
-#2. fit scale
+#1. baseline: fit scale
+#2. fix scale
 #3. fit tp
 #4. drop c1
 #5. drop c2 with floor for damage c2=0.0005
-#6. fit tp and scale
 
 #store output
-opts= array(NA, dim=c(3,6,6), dimnames = list(c("expt", "scenario","params")))
-fit= array(NA, dim=c(3,6,2), dimnames = list(c("expt", "scenario","fit"))) #aic and convergence
+opts= array(NA, dim=c(3,5,6), dimnames = list(c("expt", "scenario","params")))
+fit= array(NA, dim=c(3,5,2), dimnames = list(c("expt", "scenario","fit"))) #aic and convergence
 
 #loop through 3 experiments
 for(expt in 1:3){
 
 #account for field and lab populations in Figure 3
-if(expt==3) fecs<- fecs[fecs$population=="field",]
+if(expt==3) fecs<- fecs[which(fecs$population=="field"),]
   
 #estimate scale as max of fecundity
 scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(fec(temps.all[temps.all$expt==expt,"temp"]))/length(unique(fecs[fecs$expt==expt,"treatment"])))
@@ -144,7 +143,7 @@ scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(fec(temps.all[temps.all$expt
 #-----------
 #optimize
 
-#2. fit scale
+#1. baseline: fit scale
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,]){  
   totalerror=0
   treats=unique(temps$treatment)
@@ -156,24 +155,21 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
   return(totalerror)
 }
 
-#opt<- optim(par=c(1,0.001,0.1,1, scale.est), fn=errs, NULL, method=c("L-BFGS-B"), 
-#            lower=c(0,0.0001,0,1, scale.est/2), upper=c(2,0.1,1,3, scale.est*2) )
-
 opt<- optim(par=c(1,0.001,0.1,1, scale.est), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0,0,0,0, 0), upper=c(5,2,1,5, 1) )
+            lower=c(0,0,0,0, 0, scale.est/4), upper=c(5,2,1,5, 1, scale.est*4) )
 
 if(opt$convergence !=0){
 opt<- optim(par=c(1,0.001,0.1,1, scale.est), fn=errs, NULL, method=c("BFGS") )
 }
 
 #store output and fits
-opts[expt,2,]<- c(opt$par[1:4], 0, opt$par[5])
-fit[expt,2,]<- c(opt$value, opt$convergence)
+opts[expt,1,]<- c(opt$par[1:4], 0, opt$par[5])
+fit[expt,1,]<- c(opt$value, opt$convergence)
 
-#update scale estimate
-if(opt$convergence==0) scale.est<- opt$par[5]
+#save scale estimate
+scale.scen1<- opt$par[5]
 
-#1. baseline
+#2. fix scale
 #error function
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
   totalerror=0
@@ -189,9 +185,6 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
   return(totalerror)
 }
 
-#opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-#            lower=c(0,0.0001,0,1), upper=c(2,0.1,1,3) )
-
 opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
             lower=c(0,0,0,0), upper=c(5,2,1,5) )
 
@@ -199,8 +192,11 @@ if(opt$convergence !=0){
   opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("BFGS") )
 }
 
-opts[expt,1,]<- c(opt$par[1:4], 0, scale.est)
-fit[expt,1,]<- c(opt$value, opt$convergence)
+opts[expt,2,]<- c(opt$par[1:4], 0, scale.est)
+fit[expt,2,]<- c(opt$value, opt$convergence)
+
+#update scale estimate
+if(opt$convergence==0) scale.est<- scale.scen1
 
 #3. fit tp
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
@@ -214,9 +210,6 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
   }
   return(totalerror)
 }
-
-#opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("L-BFGS-B"), 
-#            lower=c(0,0.0001,0,1,0), upper=c(2,0.1,1,3,1) )
 
 opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("L-BFGS-B"), 
             lower=c(0,0,0,0,0), upper=c(5,2,1,5,1) )
@@ -242,9 +235,6 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
   return(totalerror)
 }
 
-#opt<- optim(par=c(0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-#            lower=c(0.0001,0,1), upper=c(0.1,1,3) )
-
 opt<- optim(par=c(0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
             lower=c(0.00001,0,1), upper=c(0.1,1,3) )
 
@@ -269,9 +259,6 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
   return(totalerror)
 }
 
-#opt<- optim(par=c(1,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-#            lower=c(0,0,1), upper=c(2,1,3) )
-
 opt<- optim(par=c(1,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
             lower=c(0,0,0), upper=c(5,1,5) )
 
@@ -279,45 +266,23 @@ if(opt$convergence !=0){
 opt<- optim(par=c(1,0.1,1), fn=errs, NULL, method=c("BFGS"), hessian=TRUE )
 }
 
+#store output and fits
+opts[expt,5,]<- c(opt$par[1], 0.000001, opt$par[2:3], 0, scale.est)
+fit[expt,5,]<- c(opt$value, opt$convergence)
+
 #95% CI
 #n <- nrow(temps.all[temps.all$expt==expt,])
 #opt$par - 1.96*sqrt(diag(solve(opt$hessian)))/n # lower limit for 95% confint
 #opt$par + 1.96*sqrt(diag(solve(opt$hessian)))/n # upper limit for 95% confint
 
-#store output and fits
-opts[expt,5,]<- c(opt$par[1], 0.000001, opt$par[2:3], 0, scale.est)
-fit[expt,5,]<- c(opt$value, opt$convergence)
-
-# #6. fit scale and tp
-# errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,]){  
-#   totalerror=0
-#   treats=unique(temps$treatment)
-#   for(i in 1:length(treats)){
-#     delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4], tp=x[5], scale=x[6])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
-#     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
-#     totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
-#   }
-#   return(totalerror)
-# }
-# 
-# opt<- optim(par=c(1,0.001,0.1,1, 0,scale.est), fn=errs, NULL, method=c("L-BFGS-B"), 
-#             lower=c(0,0,0,0,0,0), upper=c(5,2,1,5,1,1) )
-# 
-# if(opt$convergence !=0){
-# opt<- optim(par=c(1,0.001,0.1,1, 0, scale.est), fn=errs, NULL, method=c("BFGS") )
-# }
-# 
-# #store output and fits
-# #not converging, drop scenario
-# opts[expt,6,]<- c(opt$par[1:4], 0, opt$par[5])
-# fit[expt,6,]<- c(opt$value, opt$convergence)
-
 } #end loop experiments
 
+
+#-----------------
 #Construct table
-expt1<- cbind(expt="1", scenario=1:6, opts[1,,], fit[1,,])
-expt2<- cbind(expt="2", scenario=1:6, opts[2,,], fit[2,,])
-expt3<- cbind(expt="3", scenario=1:6, opts[3,,], fit[3,,])
+expt1<- cbind(expt="1", scenario=1:5, opts[1,,], fit[1,,])
+expt2<- cbind(expt="2", scenario=1:5, opts[2,,], fit[2,,])
+expt3<- cbind(expt="3", scenario=1:5, opts[3,,], fit[3,,])
 out<- rbind(expt1, expt2, expt3)
 colnames(out)[3:ncol(out)]<- c("d_mult","d_linear","r_mag","r_breadth","tp","scale","AIC","converge?")
 out<- as.data.frame(out)
@@ -335,7 +300,7 @@ write.csv(out, "opts.csv")
 #=====================
 #plot performance with values
 
-expt<- 1
+expt<- 3
 #scen: #1. baseline; 2. fit scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
 scen<- 3
 
