@@ -11,9 +11,12 @@ library(pracma)				# contains sigmoid function
 library(TrenchR)
 library(rvmethod) #gaussian function
 
+#toggle between desktop (y) and laptop (n)
+desktop<- "n"
+
 #FIT FUNCTION 
-setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
+if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
+if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
 
 temps.all<- read.csv("TempTimeSeries.csv")
 PerfDat<- read.csv("PerformanceData.csv")
@@ -125,7 +128,8 @@ fecs<- PerfDat[PerfDat$metric=="fecundity",]
 #2. fix scale
 #3. fit tp
 #4. drop c1
-#5. drop c2 with floor for damage c2=0.0005
+#5. drop c2 with floor for damage c2=0.000001
+#compare AIC of scenarios 1 and 2 to determine whether to fix scale
 
 #store output
 opts= array(NA, dim=c(3,5,6), dimnames = list(c("expt", "scenario","params")))
@@ -156,7 +160,7 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
 }
 
 opt<- optim(par=c(1,0.001,0.1,1, scale.est), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0,0,0,0, 0, scale.est/4), upper=c(5,2,1,5, 1, scale.est*4) )
+            lower=c(0,0.000001,0,0, scale.est/4), upper=c(5,2,1,5, scale.est*4) )
 
 if(opt$convergence !=0){
 opt<- optim(par=c(1,0.001,0.1,1, scale.est), fn=errs, NULL, method=c("BFGS") )
@@ -186,7 +190,7 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
 }
 
 opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0,0,0,0), upper=c(5,2,1,5) )
+            lower=c(0,0.000001,0,0), upper=c(5,2,1,5) )
 
 if(opt$convergence !=0){
   opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("BFGS") )
@@ -195,8 +199,8 @@ if(opt$convergence !=0){
 opts[expt,2,]<- c(opt$par[1:4], 0, scale.est)
 fit[expt,2,]<- c(opt$value, opt$convergence)
 
-#update scale estimate
-if(opt$convergence==0) scale.est<- scale.scen1
+#use fit scale for expts 1 and 2
+if(expt!=3) scale.est<- scale.scen1
 
 #3. fit tp
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
@@ -212,7 +216,7 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
 }
 
 opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0,0,0,0,0), upper=c(5,2,1,5,1) )
+            lower=c(0,0.000001,0,0,0), upper=c(5,2,1,5,1) )
 
 if(opt$convergence !=0){
 opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("BFGS") )
@@ -236,7 +240,7 @@ errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$ex
 }
 
 opt<- optim(par=c(0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0.00001,0,1), upper=c(0.1,1,3) )
+            lower=c(0.000001,0,1), upper=c(2,1,3) )
 
 if(opt$convergence !=0){
 opt<- optim(par=c(0.001,0.1,1), fn=errs, NULL, method=c("BFGS") )
@@ -277,7 +281,6 @@ fit[expt,5,]<- c(opt$value, opt$convergence)
 
 } #end loop experiments
 
-
 #-----------------
 #Construct table
 expt1<- cbind(expt="1", scenario=1:5, opts[1,,], fit[1,,])
@@ -289,8 +292,9 @@ out<- as.data.frame(out)
 out[,2:8]<- round(as.numeric(unlist(out[,2:8])), 4)
 out[9]<- round(as.numeric(unlist(out[9])),0)
 #save output
-setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
+if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
+if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
+
 write.csv(out, "opts.csv")
 
 #optimization options
@@ -300,9 +304,12 @@ write.csv(out, "opts.csv")
 #=====================
 #plot performance with values
 
-expt<- 3
-#scen: #1. baseline; 2. fit scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scen<- 3
+expt<- 2
+#scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
+scen<- 5
+
+#extract fecundity values
+fecs<- PerfDat[PerfDat$metric=="fecundity",]
 
 temps.expt<- temps.all[temps.all$expt==expt,]
 
@@ -438,8 +445,8 @@ if(expt==3){
 }
 
 #write out plot
-setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
-#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
+if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
+if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
 
 if(expt==1){
   pdf("AphidsExpt1.pdf",height = 14, width = 5)
