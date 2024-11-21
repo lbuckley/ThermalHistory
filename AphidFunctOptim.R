@@ -12,7 +12,7 @@ library(TrenchR)
 library(rvmethod) #gaussian function
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -132,8 +132,9 @@ fecs<- PerfDat[PerfDat$metric=="fecundity",]
 #compare AIC of scenarios 1 and 2 to determine whether to fix scale
 
 #store output
-opts= array(NA, dim=c(3,5,6), dimnames = list(c("expt", "scenario","params")))
-fit= array(NA, dim=c(3,5,2), dimnames = list(c("expt", "scenario","fit"))) #aic and convergence
+opts.scale= array(NA, dim=c(3,3,6), dimnames = list(c("expt", "scenario","params")))
+opts= array(NA, dim=c(3,4,6), dimnames = list(c("expt", "scenario","params")))
+fit= array(NA, dim=c(3,4,2), dimnames = list(c("expt", "scenario","fit"))) #aic and convergence
 
 #loop through 3 experiments
 for(expt in 1:3){
@@ -145,35 +146,95 @@ if(expt==3) fecs<- fecs[which(fecs$population=="field"),]
 scale.est<- max(fecs[fecs$expt==expt,"value"])/(sum(fec(temps.all[temps.all$expt==expt,"temp"]))/length(unique(fecs[fecs$expt==expt,"treatment"])))
 
 #-----------
-#optimize
+#Fit scale
+#Fit c1, c2, c3, c4 at scale.est/2, scale.est, scale.est*2
+#Then fix scale for subsequent fits
 
-#1. baseline: fit scale
-errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,]){  
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
   totalerror=0
   treats=unique(temps$treatment)
   for(i in 1:length(treats)){
-    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=x[5])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    #totalerror=totalerror + delta^2
+    #return( sqrt(totalerror) )
+    
     #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
     totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
   }
   return(totalerror)
 }
 
-opt<- optim(par=c(1,0.001,0.1,1, scale.est), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0,0.000001,0,0, scale.est/4), upper=c(5,2,1,5, scale.est*4) )
+opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
+            lower=c(0,0.000001,0,0), upper=c(5,2,1,5) )
 
-if(opt$convergence !=0){
-opt<- optim(par=c(1,0.001,0.1,1, scale.est), fn=errs, NULL, method=c("BFGS") )
+opts.scale[expt,1,]<- c(opt$par[1:4], 0, scale.est)
+
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est*2){  
+  totalerror=0
+  treats=unique(temps$treatment)
+  for(i in 1:length(treats)){
+    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    #totalerror=totalerror + delta^2
+    #return( sqrt(totalerror) )
+    
+    #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
+    totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
+  }
+  return(totalerror)
 }
 
-#store output and fits
-opts[expt,1,]<- c(opt$par[1:4], 0, opt$par[5])
-fit[expt,1,]<- c(opt$value, opt$convergence)
+opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
+            lower=c(0,0.000001,0,0), upper=c(5,2,1,5) )
 
-#save scale estimate
-scale.scen1<- opt$par[5]
+opts.scale[expt,2,]<- c(opt$par[1:4], 0, scale.est*2)
 
-#2. fix scale
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est*4){  
+  totalerror=0
+  treats=unique(temps$treatment)
+  for(i in 1:length(treats)){
+    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale)-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    #totalerror=totalerror + delta^2
+    #return( sqrt(totalerror) )
+    
+    #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
+    totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
+  }
+  return(totalerror)
+}
+
+opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
+            lower=c(0,0.000001,0,0), upper=c(5,2,1,5) )
+
+opts.scale[expt,3,]<- c(opt$par[1:4], 0, scale.est*4)
+
+#Estimate scale using average parameter values
+params<- colMeans(opts.scale[expt,,])
+
+errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], c1=params[1], c2=params[2], c3=params[3], c4=params[4]){  
+  totalerror=0
+  treats=unique(temps$treatment)
+  for(i in 1:length(treats)){
+    delta=computeperf(series=temps[temps$treatment==treats[i],"temp"],c1=c1,c2=c2,c3=c3,c4=c4,scale=x[1])-mean(fecundity[which(fecundity$treatment==treats[i]),"value"])
+    #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
+    totalerror= totalerror + length(temps[temps$treatment==treats[i],"temp"])*(log(2*pi)+1+log((sum(delta^2)/length(temps[temps$treatment==treats[i],"temp"])))) + ((length(x)+1)*2)
+  }
+  return(totalerror)
+}
+
+opt<- optim(par=c(scale.est), fn=errs, NULL, method=c("L-BFGS-B"), 
+            lower=c(scale.est/4), upper=c(scale.est*4) )
+
+if(opt$convergence !=0){
+  opt<- optim(par=c(scale.est), fn=errs, NULL, method=c("BFGS") )
+}
+
+#update estimate
+scale.est<- opt$par[1]
+
+#-----------
+#optimize
+
+#1. fit scale four parameters
 #error function
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
   totalerror=0
@@ -196,13 +257,10 @@ if(opt$convergence !=0){
   opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("BFGS") )
 }
 
-opts[expt,2,]<- c(opt$par[1:4], 0, scale.est)
-fit[expt,2,]<- c(opt$value, opt$convergence)
+opts[expt,1,]<- c(opt$par[1:4], 0, scale.est)
+fit[expt,1,]<- c(opt$value, opt$convergence)
 
-#use fit scale for expts 1 and 2
-if(expt!=3) scale.est<- scale.scen1
-
-#3. fit tp
+#2. fit tp
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
   totalerror=0
   treats=unique(temps$treatment)
@@ -223,10 +281,10 @@ opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("BFGS") )
 }
 
 #store output and fits
-opts[expt,3,]<- c(opt$par, scale.est)
-fit[expt,3,]<- c(opt$value, opt$convergence)
+opts[expt,2,]<- c(opt$par, scale.est)
+fit[expt,2,]<- c(opt$value, opt$convergence)
 
-#4. drop c1
+#3. drop c1
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
   totalerror=0
   treats=unique(temps$treatment)
@@ -247,10 +305,10 @@ opt<- optim(par=c(0.001,0.1,1), fn=errs, NULL, method=c("BFGS") )
 }
 
 #store output and fits
-opts[expt,4,]<- c(0, opt$par, 0, scale.est)
-fit[expt,4,]<- c(opt$value, opt$convergence)
+opts[expt,3,]<- c(0, opt$par, 0, scale.est)
+fit[expt,3,]<- c(opt$value, opt$convergence)
 
-#5. drop c2 with floor for damage c2=0.000001
+#4. drop c2 with floor for damage c2=0.000001
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
   totalerror=0
   treats=unique(temps$treatment)
@@ -271,8 +329,8 @@ opt<- optim(par=c(1,0.1,1), fn=errs, NULL, method=c("BFGS"), hessian=TRUE )
 }
 
 #store output and fits
-opts[expt,5,]<- c(opt$par[1], 0.000001, opt$par[2:3], 0, scale.est)
-fit[expt,5,]<- c(opt$value, opt$convergence)
+opts[expt,4,]<- c(opt$par[1], 0.000001, opt$par[2:3], 0, scale.est)
+fit[expt,4,]<- c(opt$value, opt$convergence)
 
 #95% CI
 #n <- nrow(temps.all[temps.all$expt==expt,])
@@ -283,19 +341,23 @@ fit[expt,5,]<- c(opt$value, opt$convergence)
 
 #-----------------
 #Construct table
-expt1<- cbind(expt="1", scenario=1:5, opts[1,,], fit[1,,])
-expt2<- cbind(expt="2", scenario=1:5, opts[2,,], fit[2,,])
-expt3<- cbind(expt="3", scenario=1:5, opts[3,,], fit[3,,])
+expt1<- cbind(expt="1", scenario=1:4, opts[1,,], fit[1,,])
+expt2<- cbind(expt="2", scenario=1:4, opts[2,,], fit[2,,])
+expt3<- cbind(expt="3", scenario=1:4, opts[3,,], fit[3,,])
 out<- rbind(expt1, expt2, expt3)
 colnames(out)[3:ncol(out)]<- c("d_mult","d_linear","r_mag","r_breadth","tp","scale","AIC","converge?")
 out<- as.data.frame(out)
 out[,2:8]<- round(as.numeric(unlist(out[,2:8])), 4)
 out[9]<- round(as.numeric(unlist(out[9])),0)
+
+out.scale<- rbind(opts.scale[1,,], opts.scale[2,,], opts.scale[3,,])
+
 #save output
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
 if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
 
 write.csv(out, "opts.csv")
+write.csv(out.scale, "opts_scale.csv")
 
 #optimization options
 #efficient package: https://cran.r-project.org/web/packages/lbfgs/vignettes/Vignette.pdf
@@ -304,9 +366,9 @@ write.csv(out, "opts.csv")
 #=====================
 #plot performance with values
 
-expt<- 2
+expt<-3
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scen<- 5
+scen<- 1
 
 #extract fecundity values
 fecs<- PerfDat[PerfDat$metric=="fecundity",]
