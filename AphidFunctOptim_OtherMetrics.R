@@ -329,7 +329,7 @@ opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("BFGS") )
 #store output and fits
 opts[expt,3,]<- c(opt$par, scale.est)
 fit[expt,3,]<- c(opt$value, opt$convergence)
-
+rrr
 #4. drop c1
 errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est, pm=pm.ind){  
   totalerror=0
