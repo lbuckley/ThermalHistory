@@ -366,7 +366,7 @@ write.csv(out.scale, "opts_scale.csv")
 #=====================
 #plot performance with values
 
-expt<-3
+expt<-1
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
 scen<- 1
 
