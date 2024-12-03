@@ -368,16 +368,133 @@ PerfDat$population<- NA
 PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population")])
 
 #=========================================
-
+#Expt 4
 #Ma et al. 2015. Daily temperature extremes play an important role in predicting thermal effects. The Journal of Experimental Biology 218 (14), 2289-2296
-#https://doi.org/10.1242/jeb.122127, no data in paper
+#https://doi.org/10.1242/jeb.122127, provided data
+#Vary daily maximum temperatures, while holding night-time temperatures constant
 
-#=====
+#read data
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Maetal2015/")
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Maetal2015/")
+#setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Maetal2015/")
+
+adat5.t<- read.csv("Maetal2015_temps.csv")
+adat5.p<- read.csv("Maetal2015_perf.csv")
+
+#--------------
+# construct temperatures
+#to long format
+temps.l<- melt(adat5.t, id.vars = c("Hour"), variable.name = "tmax")
+
+#plot temperatures, varying night temperatures
+ggplot(data=temps.l, aes(x=Hour, y =value, color=tmax, group=tmax))+geom_line()
+
+## FORMAT
+##expand to 30 days
+#temps= do.call("cbind", rep(list(temps), 30))
+#colnames(temps)[2:ncol(temps)]<- 1:(ncol(temps)-1)
+
+#to long format
+temps.l<- melt(temps, id.vars = c("Tmean", "Tvar", "treat", "Tmean_var"), variable.name = "time")
+temps.l$time= as.numeric(temps.l$time)
+temps.l$value= as.numeric(temps.l$value)
+
+ggplot(data=temps.l, aes(x=time, y =value, color=Tvar, group=Tmean_var))+geom_line()+
+  facet_grid(.~treat, scale="free_y")
+
+#combine temp data
+temps.l<- temps.l[,c("Tmean_var","time","value")]
+colnames(temps.l)<- c("treatment","time","temp")
+temps.l$expt<- 3
+
+temps.all<- rbind(temps.all, temps.l)
+
+
+#--------------
+# assemble performance metrics
+
+#Fecundity, Longevity
+adat5.p.m= adat5.p %>%
+  group_by(Dmax_C) %>%
+  summarise(lon= mean(longevity, na.rm = TRUE), fec=mean(fecundity, na.rm = TRUE), nymp.dur=mean(DurL, na.rm = TRUE) )
+
+#to long format
+adat5.p.l<- melt(adat5.p.m, id.vars = c("Dmax_C"), variable.name = "metric")
+
+obs<- adat5.p.l[,c("Dmax_C","metric","value")]
+obs$treatment<- obs$Dmax_C
+obs$expt<- 5
+obs$population<- NA
+
+PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population")])
+
+#=========================================
+#Expt 5
 #Zhao et al. The importance of timing of heat events for predicting the dynamics of aphid pest populations. Pest management science, 2019
-#https://doi.org/10.1002/ps.5344
+#https://doi.org/10.1002/ps.5344, provided data
 #survival and productivity
-#no data online
 #Sitobion avenae 
+#using heat stress (20–35°C diurnal cycle) across the nymph and adult stages
+#16 days
+#four timings [early nymph (NE), late nymph (NL), early adult (AE) as well as late adult (AL)] and six durations (1, 2, 3, 4, 5 and 6 consecutively hot days)
+#Fecundity (nymphs / adult): focus on NE or NL
+#Hot day: 20–35C; Normal day: 13–28C
+
+
+#read data
+setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Zhaoetal2019/")
+#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Zhaoetal2019/")
+#setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Zhaoetal2019/")
+
+adat6.t<- read.csv("Zhaoetal2019_temps.csv")
+adat6.p<- read.csv("Zhaoetal2019_perf.csv")
+
+#--------------
+# construct temperatures
+#to long format
+temps.l<- melt(adat6.t, id.vars = c("Hour"), variable.name = "tmax")
+## FORMAT
+
+#plot temperatures, varying night temperatures
+ggplot(data=temps.l, aes(x=Hour, y =value, color=tmax, group=tmax))+geom_line()
+
+##expand to 30 days
+#temps= do.call("cbind", rep(list(temps), 30))
+#colnames(temps)[2:ncol(temps)]<- 1:(ncol(temps)-1)
+
+#to long format
+temps.l<- melt(temps, id.vars = c("Tmean", "Tvar", "treat", "Tmean_var"), variable.name = "time")
+temps.l$time= as.numeric(temps.l$time)
+temps.l$value= as.numeric(temps.l$value)
+
+ggplot(data=temps.l, aes(x=time, y =value, color=Tvar, group=Tmean_var))+geom_line()+
+  facet_grid(.~treat, scale="free_y")
+
+#combine temp data
+temps.l<- temps.l[,c("Tmean_var","time","value")]
+colnames(temps.l)<- c("treatment","time","temp")
+temps.l$expt<- 3
+
+temps.all<- rbind(temps.all, temps.l)
+
+#--------------
+# assemble performance metrics
+
+#Fecundity, Longevity
+adat6.p.m= adat6.p %>%
+  group_by(Treatments) %>%
+  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Productivity, na.rm = TRUE), nymp.dur=mean(Nymph.duration, na.rm = TRUE) )
+#Also life period and immediate.death
+
+#to long format
+adat6.p.l<- melt(adat6.p.m, id.vars = c("Treatments"), variable.name = "metric")
+
+obs<- adat6.p.l[,c("Treatments","metric","value")]
+obs$treatment<- obs$Treatments
+obs$expt<- 6
+obs$population<- NA
+
+PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population")])
 
 #====================
 #write out data sets
