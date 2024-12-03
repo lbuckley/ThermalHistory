@@ -27,7 +27,7 @@ adat2.dt<- read.csv("Zhaoetal2014/Zhaoetal2014_devtime.csv")
 adat2.p<- read.csv("Zhaoetal2014/Zhaoetal2014_AdPerf.csv")
 adat2.lt<- read.csv("Zhaoetal2014/Zhaoetal2014_LifeTable.csv")
 adat2.sur<- read.csv("Zhaoetal2014/Zhaoetal2014_SurvNymph.csv")
-
+#coudl add survival bu format unclear
 #----
 #construct temperatures
 #currently sawtooth, make sine wave?
@@ -212,9 +212,11 @@ temps.all<- rbind(temps.all, temps.l)
 adat3.tr$dt= adat3.tr$X1st_instar +adat3.tr$X2ed_instar +adat3.tr$X3rd_instar +adat3.tr$X4th_instar +adat3.tr$NymphDur
 #developmental rate
 adat3.tr$dr= 1/adat3.tr$dt
+#fedundity rate
+adat3.tr$fec.rate= adat3.tr$Fecundity / adat3.tr$Longevity
 
 #to long format
-adat3.l<- melt(adat3.tr[,c("Treatment","ID","H_C","CycleDays","ContinueNormalDay","ContinueHotday","Longevity","Fecundity","BirthDur","dr")], 
+adat3.l<- melt(adat3.tr[,c("Treatment","ID","H_C","CycleDays","ContinueNormalDay","ContinueHotday","Longevity","Fecundity","BirthDur","dr","fec.rate")], 
                id.vars = c("Treatment","ID","H_C","CycleDays","ContinueNormalDay","ContinueHotday"), variable.name = "metric")
 adat3.l$ContinueNormalDay <- as.factor(adat3.l$ContinueNormalDay)
 

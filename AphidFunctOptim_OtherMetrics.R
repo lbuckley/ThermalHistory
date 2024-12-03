@@ -367,28 +367,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   if(opt$convergence !=0){
     opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("BFGS") )
   }
-<<<<<<< HEAD
-  return(totalerror)
-}
 
-opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("L-BFGS-B"), 
-            lower=c(0,0.000001,0,0,0), upper=c(5,2,1,5,1) )
-
-if(opt$convergence !=0){
-opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("BFGS") )
-}
-
-#store output and fits
-opts[expt,3,]<- c(opt$par, scale.est)
-fit[expt,3,]<- c(opt$value, opt$convergence)
-rrr
-#4. drop c1
-errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est, pm=pm.ind){  
-  totalerror=0
-  treats=unique(temps$treatment)
-=======
->>>>>>> 55784cbe6c65083b3216c249e3791220d5f74dda
-  
   #store output and fits
   opts[expt,2,]<- c(opt$par, scale.est)
   fit[expt,2,]<- c(opt$value, opt$convergence)
