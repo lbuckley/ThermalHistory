@@ -12,7 +12,7 @@ library(TrenchR)
 library(rvmethod) #gaussian function
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -167,7 +167,7 @@ computeperf<- function(pm, series,c1,c2,c3,c4,tp=0,scale,printdam=FALSE)  {
     damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
   p= p + perf*(1-damage)
   }
-return(p*scale)
+return(p*scale/length(series))
 }
 
 #-----------
@@ -230,18 +230,18 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      delta=fecundity[which(fecundity$treatment==treats[i]),"value"]- mean(computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale))
-      #totalerror=totalerror + delta^2
-      #return( sqrt(totalerror) )
+      delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale))
+      totalerror=totalerror + delta^2
       
       #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
-      totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
+      #totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
     }
-    return(totalerror)
+    return( sqrt(totalerror) )
+    #return(totalerror)
   }
   
   opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-              lower=c(0,0.000001,0,0), upper=c(5,2,1,5) )
+              lower=c(0,0.000001,0,0), upper=c(5,2,1,5) ) #, control = list(trace=2)
   
   if(opt$convergence !=0){
     opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("BFGS") )
@@ -255,12 +255,14 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      delta=fecundity[which(fecundity$treatment==treats[i]),"value"]- mean(computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=x[5],scale=scale))
+      delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=x[5],scale=scale))
+      totalerror=totalerror + delta^2
       
       #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
-      totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
+      #totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
     }
-    return(totalerror)
+    return( sqrt(totalerror) )
+    #return(totalerror)
   }
   
   opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("L-BFGS-B"), 
@@ -279,12 +281,14 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      delta=fecundity[which(fecundity$treatment==treats[i]),"value"]- mean(computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],c4=x[3],scale=scale.est))
+      delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],c4=x[3],scale=scale))
+      totalerror=totalerror + delta^2
       
       #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
-      totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
+      #totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
     }
-    return(totalerror)
+    return( sqrt(totalerror) )
+    #return(totalerror)
   }
   
   opt<- optim(par=c(0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
@@ -303,12 +307,14 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      delta=fecundity[which(fecundity$treatment==treats[i]),"value"]- mean(computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0.0005,c3=x[2],c4=x[3],scale=scale.est))
+      delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0.0005,c3=x[2],c4=x[3],scale=scale))
+      totalerror=totalerror + delta^2
       
       #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
-      totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
+      #totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
     }
-    return(totalerror)
+    return( sqrt(totalerror) )
+    #return(totalerror)
   }
   
   opt<- optim(par=c(1,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
@@ -364,7 +370,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
 
 expt<- 3
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scen<- 6
+scen<- 2
 
 #extract performance values
 if(pm.ind==1) fecs<- PerfDat[PerfDat$metric=="dev_rate",]
@@ -433,7 +439,7 @@ if(expt==3){
 #plot outcomes
 if(expt==1){ 
   #aggregate
-  d1.agg= aggregate(.~metric+treatment, d1, sum)
+  d1.agg= aggregate(.~metric+treatment, d1, mean)
   d1.agg= d1.agg[-which(d1.agg$metric=="temperature"), 1:3]
   
   #add observed
@@ -447,7 +453,7 @@ if(expt==1){
   
 if(expt==2){
   #aggregate
-  d1.agg= aggregate(.~metric+treatment, d1[,1:4], sum)
+  d1.agg= aggregate(.~metric+treatment, d1[,1:4], mean)
   d1.agg= d1.agg[-which(d1.agg$metric=="temperature"), 1:3]
   
   #add observed
@@ -469,7 +475,7 @@ if(expt==2){
 
 if(expt==3){ 
   #aggregate
-  d1.agg= aggregate(.~metric+treatment, d1[,1:4], sum)
+  d1.agg= aggregate(.~metric+treatment, d1[,1:4], mean)
   d1.agg= d1.agg[-which(d1.agg$metric=="temperature"), 1:3]
   
   #add observed

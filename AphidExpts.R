@@ -8,9 +8,10 @@ library(ggplot2)
 library(deSolve)
 library(pracma)				# contains sigmoid function
 library(TrenchR)
+library(zoo)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #Analysis for English grain aphid, Sitobion avenae
 
@@ -440,9 +441,16 @@ adat6.p<- read.csv("Zhaoetal2019/Zhaoetal2019_perf.csv")
 # construct temperatures
 adat6.t$Temp...C<- as.numeric(adat6.t$Temp...C)
 
-hrs<- as.numeric(format(strptime(adat6.t$Time..GMT.08.00, format="%y/%m/%d %H:%M"),'%H'))
 min<- as.numeric(format(strptime(adat6.t$Time..GMT.08.00, format="%y/%m/%d %H:%M"),'%M'))
+#restrict to 20 minute interval
+adat6.t<- adat6.t[min %in% c(0,20,40),]
+min<- min[min %in% c(0,20,40)]
+
+hrs<- as.numeric(format(strptime(adat6.t$Time..GMT.08.00, format="%y/%m/%d %H:%M"),'%H'))
 adat6.t$doy<- as.numeric(format(strptime(adat6.t$Time..GMT.08.00, format="%y/%m/%d %H:%M"),'%j'))
+#restrict to 20 minute interval
+adat6.t<- adat6.t[min %in% c(0,20,40),]
+
 time<- hrs+min/60
 
 runs<- rle(adat6.t$am_pm)
@@ -471,6 +479,10 @@ temps.h= temps.h[which(temps.h$doy>=251),]
 temps.h$day<- temps.h$doy -temps.h$doy[1] + 1
 temps.h<- temps.h[,c("ind","Temp...C","time","day")]
 temps.h$dt<- temps.h$day +temps.h$time/24
+
+#fill nas
+temps.h$Temp...C<- na.approx(temps.h$Temp...C)
+temps.n$Temp...C<- na.approx(temps.n$Temp...C)
 
 #AE1: 8-9
 temps.n$AE1 <- temps.n$Temp...C
@@ -536,6 +548,9 @@ temps.n$NL1[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
 #to long format
 temps.n <- temps.n[,c("ind","AE1","AE2","AE3","AE4","AE5","AE6","NL1","NL2","NL3","NL4","NL5","NL6")]
 temps.l<- melt(temps.n, id.vars = c("ind"), variable.name = "treatment")
+
+#fill 1 nas
+temps.l$value <- na.approx(temps.l$value)
 
 #plot temperatures, varying night temperatures
 ggplot(data=temps.l, aes(x=ind, y =value, color=treatment, group=treatment))+geom_line()
