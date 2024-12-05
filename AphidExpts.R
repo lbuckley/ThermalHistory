@@ -9,10 +9,10 @@ library(deSolve)
 library(pracma)				# contains sigmoid function
 library(TrenchR)
 
-#Analysis for English grain aphid, Sitobion avenae
+#toggle between desktop (y) and laptop (n)
+desktop<- "n"
 
-setwd("/Users/laurenbuckley/ThermalHistory")
-#setwd("/Users/lbuckley/ThermalHistory") #laptop
+#Analysis for English grain aphid, Sitobion avenae
 
 #=====
 #Expt 1
@@ -20,8 +20,8 @@ setwd("/Users/laurenbuckley/ThermalHistory")
 #Dryad data: http://doi.org/10.5061/dryad.q2070 
 #English grain aphid, Sitobion avenae
 
-setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/")
-#setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/")
+if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/")
+if(desktop=="n") setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/")
 
 adat2.dt<- read.csv("Zhaoetal2014/Zhaoetal2014_devtime.csv")
 adat2.p<- read.csv("Zhaoetal2014/Zhaoetal2014_AdPerf.csv")
@@ -272,16 +272,12 @@ PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt")])
 #Sitobion avenae
 
 #read data
-setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
-#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
-#setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/WangMa2023/")
-
 #mild means
-adat4.var<- read.csv("WangMa2023_temp22mean_diffvar.csv")
+adat4.var<- read.csv("WangMa2023/WangMa2023_temp22mean_diffvar.csv")
 #high means
-adat4.mean<- read.csv("WangMa2023_diffmeans.csv")
+adat4.mean<- read.csv("WangMa2023/WangMa2023_diffmeans.csv")
 #popgrowth
-adat4.r<- read.csv("WangMa2023_popgrowth.csv")
+adat4.r<- read.csv("WangMa2023/WangMa2023_popgrowth.csv")
 
 #----------
 #set up temperatures
@@ -374,12 +370,8 @@ PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population"
 #Vary daily maximum temperatures, while holding night-time temperatures constant
 
 #read data
-setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Maetal2015/")
-#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Maetal2015/")
-#setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Maetal2015/")
-
-adat5.t<- read.csv("Maetal2015_temps.csv")
-adat5.p<- read.csv("Maetal2015_perf.csv")
+adat5.t<- read.csv("Maetal2015/Maetal2015_temps.csv")
+adat5.p<- read.csv("Maetal2015/Maetal2015_perf.csv")
 
 #--------------
 # construct temperatures
@@ -389,41 +381,42 @@ temps.l<- melt(adat5.t, id.vars = c("Hour"), variable.name = "tmax")
 #plot temperatures, varying night temperatures
 ggplot(data=temps.l, aes(x=Hour, y =value, color=tmax, group=tmax))+geom_line()
 
-## FORMAT
-##expand to 30 days
-#temps= do.call("cbind", rep(list(temps), 30))
-#colnames(temps)[2:ncol(temps)]<- 1:(ncol(temps)-1)
+#expand to 30 days
+temps= do.call("rbind", rep(list(adat5.t), 30))
+colnames(temps)[1]<-"time"
+temps$time<- 1:720
 
 #to long format
-temps.l<- melt(temps, id.vars = c("Tmean", "Tvar", "treat", "Tmean_var"), variable.name = "time")
+temps.l<- melt(temps, id.vars = c("time"), variable.name = "tmax")
 temps.l$time= as.numeric(temps.l$time)
 temps.l$value= as.numeric(temps.l$value)
 
-ggplot(data=temps.l, aes(x=time, y =value, color=Tvar, group=Tmean_var))+geom_line()+
-  facet_grid(.~treat, scale="free_y")
+ggplot(data=temps.l, aes(x=time, y =value, color=tmax, group=tmax))+geom_line()
 
 #combine temp data
-temps.l<- temps.l[,c("Tmean_var","time","value")]
+temps.l<- temps.l[,c("tmax","time","value")]
 colnames(temps.l)<- c("treatment","time","temp")
-temps.l$expt<- 3
+temps.l$expt<- 4
 
 temps.all<- rbind(temps.all, temps.l)
-
 
 #--------------
 # assemble performance metrics
 
+#developmental rate
+adat5.p$dr= 1/adat5.p$DurL
+
 #Fecundity, Longevity
 adat5.p.m= adat5.p %>%
   group_by(Dmax_C) %>%
-  summarise(lon= mean(longevity, na.rm = TRUE), fec=mean(fecundity, na.rm = TRUE), nymp.dur=mean(DurL, na.rm = TRUE) )
+  summarise(lon= mean(longevity, na.rm = TRUE), fec=mean(fecundity, na.rm = TRUE), dr=mean(dr, na.rm = TRUE) )
 
 #to long format
 adat5.p.l<- melt(adat5.p.m, id.vars = c("Dmax_C"), variable.name = "metric")
 
 obs<- adat5.p.l[,c("Dmax_C","metric","value")]
 obs$treatment<- obs$Dmax_C
-obs$expt<- 5
+obs$expt<- 4
 obs$population<- NA
 
 PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population")])
@@ -435,63 +428,145 @@ PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population"
 #survival and productivity
 #Sitobion avenae 
 #using heat stress (20–35°C diurnal cycle) across the nymph and adult stages
-#16 days
 #four timings [early nymph (NE), late nymph (NL), early adult (AE) as well as late adult (AL)] and six durations (1, 2, 3, 4, 5 and 6 consecutively hot days)
 #Fecundity (nymphs / adult): focus on NE or NL
 #Hot day: 20–35C; Normal day: 13–28C
 
-
 #read data
-setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Zhaoetal2019/")
-#setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Zhaoetal2019/")
-#setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/data/aphids/Zhaoetal2019/")
-
-adat6.t<- read.csv("Zhaoetal2019_temps.csv")
-adat6.p<- read.csv("Zhaoetal2019_perf.csv")
+adat6.t<- read.csv("Zhaoetal2019/Zhaoetal2019_temps.csv")
+adat6.p<- read.csv("Zhaoetal2019/Zhaoetal2019_perf.csv")
 
 #--------------
 # construct temperatures
+adat6.t$Temp...C<- as.numeric(adat6.t$Temp...C)
+
+hrs<- as.numeric(format(strptime(adat6.t$Time..GMT.08.00, format="%y/%m/%d %H:%M"),'%H'))
+min<- as.numeric(format(strptime(adat6.t$Time..GMT.08.00, format="%y/%m/%d %H:%M"),'%M'))
+adat6.t$doy<- as.numeric(format(strptime(adat6.t$Time..GMT.08.00, format="%y/%m/%d %H:%M"),'%j'))
+time<- hrs+min/60
+
+runs<- rle(adat6.t$am_pm)
+
+time[which(adat6.t$am_pm=="pm" & hrs<12)]= time[which(adat6.t$am_pm=="pm" & hrs<12)] +12
+time[which(adat6.t$am_pm=="am" & hrs==12)]= time[which(adat6.t$am_pm=="am" & hrs==12)] -12
+adat6.t$time<- time
+
+#plot normal and high treatment temperatures
+ggplot(data=adat6.t, aes(x=time, y =Temp...C, color=treatment, group=treatment))+geom_line()
+
+#duration normal temps
+unique(adat6.t$doy[which(adat6.t$treatment=="normal")])
+#experiment run until all dead, but truncate at 30 days
+
+#Focus on AE: adult early and NE: nymphal late
+temps.n= adat6.t[which(adat6.t$treatment=="normal"),]
+temps.n$day<- temps.n$doy -temps.n$doy[1] + 1
+#restrict to 30 days
+temps.n= temps.n[which(temps.n$day<=30),]
+temps.n<- temps.n[,c("ind","Temp...C","time","day")]
+temps.n$dt<- temps.n$day +temps.n$time/24
+
+temps.h= adat6.t[which(adat6.t$treatment=="high"),]
+temps.h= temps.h[which(temps.h$doy>=251),]
+temps.h$day<- temps.h$doy -temps.h$doy[1] + 1
+temps.h<- temps.h[,c("ind","Temp...C","time","day")]
+temps.h$dt<- temps.h$day +temps.h$time/24
+
+#AE1: 8-9
+temps.n$AE1 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(8:9))
+temps.n$AE1[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
+#AE2: 8-10
+temps.n$AE2 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(8:10))
+temps.n$AE2[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
+#AE3: 8-11
+temps.n$AE3 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(8:11))
+temps.n$AE3[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
+#AE4: 8-12
+temps.n$AE4 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(8:12))
+temps.n$AE4[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
+#AE5: 8-13
+temps.n$AE5 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(8:13))
+temps.n$AE5[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
+#AE6: 8-14
+temps.n$AE6 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(8:14))
+temps.n$AE6[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
+#Late nymphal
+#NL6: 1-7
+temps.n$NL6 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(1:7))
+temps.n$NL6[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
+#NL5: 2-7
+temps.n$NL5 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(2:7))
+temps.n$NL5[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
+#NL4: 3-7
+temps.n$NL4 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(3:7))
+temps.n$NL4[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
+#NL3: 4-7
+temps.n$NL3 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(4:7))
+temps.n$NL3[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
+#NL2: 5-7
+temps.n$NL2 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(5:7))
+temps.n$NL2[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
+#NL1: 6-7
+temps.n$NL1 <- temps.n$Temp...C
+inds<- which(temps.n$day %in% c(6:7))
+temps.n$NL1[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
+
 #to long format
-temps.l<- melt(adat6.t, id.vars = c("Hour"), variable.name = "tmax")
-## FORMAT
+temps.n <- temps.n[,c("ind","AE1","AE2","AE3","AE4","AE5","AE6","NL1","NL2","NL3","NL4","NL5","NL6")]
+temps.l<- melt(temps.n, id.vars = c("ind"), variable.name = "treatment")
 
 #plot temperatures, varying night temperatures
-ggplot(data=temps.l, aes(x=Hour, y =value, color=tmax, group=tmax))+geom_line()
+ggplot(data=temps.l, aes(x=ind, y =value, color=treatment, group=treatment))+geom_line()
 
-##expand to 30 days
-#temps= do.call("cbind", rep(list(temps), 30))
-#colnames(temps)[2:ncol(temps)]<- 1:(ncol(temps)-1)
-
-#to long format
-temps.l<- melt(temps, id.vars = c("Tmean", "Tvar", "treat", "Tmean_var"), variable.name = "time")
-temps.l$time= as.numeric(temps.l$time)
-temps.l$value= as.numeric(temps.l$value)
-
-ggplot(data=temps.l, aes(x=time, y =value, color=Tvar, group=Tmean_var))+geom_line()+
-  facet_grid(.~treat, scale="free_y")
-
+#----
 #combine temp data
-temps.l<- temps.l[,c("Tmean_var","time","value")]
-colnames(temps.l)<- c("treatment","time","temp")
-temps.l$expt<- 3
+colnames(temps.l)<- c("time","treatment","temp")
+temps.l$expt<- 5
 
 temps.all<- rbind(temps.all, temps.l)
 
 #--------------
 # assemble performance metrics
 
+adat6.p$dr <- 1/adat6.p$Nymph.duration
+
 #Fecundity, Longevity
 adat6.p.m= adat6.p %>%
   group_by(Treatments) %>%
-  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Productivity, na.rm = TRUE), nymp.dur=mean(Nymph.duration, na.rm = TRUE) )
+  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Productivity, na.rm = TRUE), dr=mean(dr, na.rm = TRUE) )
 #Also life period and immediate.death
+
+#reduce to early adult treatments
+adat6.p.m<- adat6.p.m[adat6.p.m$Treatments %in% c("AE1","AE2","AE3","AE4","AE5","AE6","NL1","NL2","NL3","NL4","NL5","NL6"),]
 
 #to long format
 adat6.p.l<- melt(adat6.p.m, id.vars = c("Treatments"), variable.name = "metric")
 
 obs<- adat6.p.l[,c("Treatments","metric","value")]
 obs$treatment<- obs$Treatments
-obs$expt<- 6
+obs$expt<- 5
 obs$population<- NA
 
 PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population")])
@@ -499,8 +574,8 @@ PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population"
 #====================
 #write out data sets
 
-setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-#setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/out/")
+if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
+if(desktop=="n") setwd("/Volumes/GoogleDrive/My Drive/Buckley/Work/ThermalHistory/out/")
 
 PerfDat$metric= as.character(PerfDat$metric)
 
