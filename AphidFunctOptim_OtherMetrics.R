@@ -368,7 +368,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
 #=====================
 #plot performance with values
 
-expt<- 3
+expt<- 4
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
 scen<- 2
 
@@ -402,7 +402,12 @@ d1$metric <- factor(d1$metric, ordered=TRUE, levels=c("temperature", "performanc
 #----------------
 #plot time series
 #expt 1
-if(expt==1){ 
+if(expt %in% c(1,4) ){ 
+  
+  if(expt==4){ 
+    #strip Dmax_
+    d1$treatment <- gsub("Dmax_", "", d1$treatment)}
+  
   d1$treatment <- factor(d1$treatment)
   plot1.expt1= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment)))+geom_line(lwd=1.5)+facet_wrap(.~metric, scale="free_y", switch="y", ncol=1)+xlim(0,100)+
   theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)+labs(color="treatment")
@@ -435,9 +440,22 @@ if(expt==3){
   plot1.expt3= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), group=treatment))+geom_line(lwd=1.5)+facet_grid(metric~expt, scale="free_y", switch="y")+xlim(0,100)+
     theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)+labs(color="treatment")
 }
+
+#expt 5
+if(expt==5){ 
+  #code groups
+  d1$group<- "nymphal heatwave"
+  d1$group[d1$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6")]<- "adult heatwave"
+  
+  d1$treatment <- factor(d1$treatment)
+  plot1.expt5= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment)))+geom_line(lwd=1.5)+
+    facet_grid(metric~group, scale="free_y", switch="y")+xlim(0,500)+
+    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)+labs(color="treatment")
+}
+
 #----------  
 #plot outcomes
-if(expt==1){ 
+if(expt%in% c(1,4)){ 
   #aggregate
   d1.agg= aggregate(.~metric+treatment, d1, mean)
   d1.agg= d1.agg[-which(d1.agg$metric=="temperature"), 1:3]
@@ -510,6 +528,25 @@ if(expt==3){
     theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")
 }
 
+if(exp==5){ 
+  #aggregate
+  d1.agg= aggregate(.~metric+treatment+group, d1, mean)
+  d1.agg= d1.agg[-which(d1.agg$metric=="temperature"), c(1:4)]
+  
+  #add observed
+  fdat<- fecs[fecs$expt==expt,c("metric","treatment", "value")]
+  fdat<- aggregate(.~metric+treatment, fdat, mean)
+  #code groups
+  fdat$group<- "nymphal heatwave"
+  fdat$group[fdat$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6")]<- "adult heatwave"
+  
+  d1.agg<- rbind(d1.agg, fdat)
+  
+  plot2.expt5= ggplot(data=d1.agg, aes(x=treatment, y =value, color=metric, group=metric))+geom_point(size=2)+geom_line(lwd=1.5)+
+    facet_grid(.~group, scale="free", switch="y")+
+    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))
+}
+
 #write out plot
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
 if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
@@ -538,6 +575,22 @@ if(expt==3){
   dev.off()
   }
 
+if(expt==4){
+  out_file <- paste("AphidsExpt4_", pms[pm.ind], ".pdf", sep="")
+  
+  pdf(out_file,height = 14, width = 5)
+  print(plot1.expt1 +plot2.expt1 +plot_layout(ncol=1, heights = c(3, 1))+ plot_annotation(tag_levels = 'A') )
+  dev.off()
+}
+
+if(expt==5){
+  out_file <- paste("AphidsExpt5_", pms[pm.ind], ".pdf", sep="")
+  
+  pdf(out_file,height = 14, width = 5)
+  print(plot1.expt5 +plot2.expt5 +plot_layout(ncol=1, heights = c(3, 1))+ plot_annotation(tag_levels = 'A') )
+  dev.off()
+}
+
 #------------------------------------
 #Plot developmental rate comparisons
 
@@ -546,7 +599,7 @@ plot2.expt2= plot2.expt2 + theme(legend.position = "none")
 plot2.expt3= plot2.expt3 + guides(colour = guide_legend(nrow = 3))
 
 pdf("Fig_DevRate.pdf",height = 10, width = 6)
-  print(plot2.expt1 +plot2.expt2 +plot2.expt3 +plot_layout(ncol=1, heights = c(1, 1, 1.2))+ plot_annotation(tag_levels = 'A') )
+  print(plot2.expt1 +plot2.expt2 +plot2.expt3 +plot2.expt4 +plot2.expt5 +plot_layout(ncol=2, heights = c(1, 1, 1.2))+ plot_annotation(tag_levels = 'A') )
 dev.off()
 
 

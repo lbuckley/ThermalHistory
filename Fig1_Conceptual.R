@@ -73,7 +73,7 @@ return(damage.p)
 }
 
 #compute performance
-perf<- function(series,c1,c2,c3,c4,tp=0,scale)  {
+perf<- function(series,c1,c2,c3,c4,tp=0,scale=1)  {
   p=NA
   damage=0
   for(i in 1:length(series)){
@@ -85,7 +85,7 @@ perf<- function(series,c1,c2,c3,c4,tp=0,scale)  {
   return(perf.all)
 }
 
-perf.nodamage<- function(series,scale)  {
+perf.nodamage<- function(series,scale=1)  {
   p=NA
   for(i in 1:length(series)){
     p= fec(series[i])
@@ -95,14 +95,14 @@ perf.nodamage<- function(series,scale)  {
   return(perf.all)
 }
 
-computeperf<- function(series,c1,c2,c3,c4,tp=0,scale,printdam=FALSE)  {
+computeperf<- function(series,c1,c2,c3,c4,tp=0,scale=1,printdam=FALSE)  {
   p=0
   damage=0
   for(i in 1:length(series)){
     damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
   p= p + fec(series[i])*(1-damage)
   }
-return(p*scale)
+return(p*scale/length(series))
 }
 
 #-----------
@@ -116,7 +116,7 @@ cs<- expand.grid(c1=seq(0, 2, 0.5), c2= seq(0, .01, 0.003), c3= seq(0, 1, 0.25),
 
 #fit values
 #cs<- expand.grid(c1=c(1.95,2), c2= c(0.0007, 0.001), c3= c(0.25,0.66), c4= c(1.1, 1.3), scale= 0.01)
-cs<- expand.grid(c1=c(1,2), c2= c(0.00001, 0.001), c3= c(0.2,0.9), c4= c(1, 3), scale= 0.01)
+cs<- expand.grid(c1=c(1,2), c2= c(0.00001, 0.001), c3= c(0.2,0.9), c4= c(1, 3), scale= 1)
 
 for(k in 1:nrow(cs)){
   p1= perf(temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
@@ -229,20 +229,20 @@ ts<- temps
 #ts.l= gather(ts, time, temp:performance, factor_key=TRUE)
 
 #performance without repair
-fdat0<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.0, c2=0.0000, c3=0, c4=1, scale=0.01), type="fecundity", c1=0, c2=0.000, c3=0, c4=1, group=3.0))
-fdat<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.0001, c2=0.0001, c3=0, c4=1, scale=0.01), type="fecundity", c1=0.0001, c2=0.0001, c3=0, c4=1, group=3.1))
-fdat2<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.0001, c2=0.0005, c3=0, c4=1, scale=0.01), type="fecundity", c1=0.0001, c2=0.0005, c3=0, c4=1, group=3.2))
-fdat3<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.0001, c3=0, c4=1, scale=0.01), type="fecundity", c1=0.001, c2=0.0001,  c3=0, c4=1, group=3.3))
-fdat4<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.0005, c3=0, c4=1, scale=0.01), type="fecundity", c1=0.001, c2=0.0001,  c3=0, c4=1, group=3.4))
+fdat0<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.0, c2=0.0000, c3=0, c4=1, scale=1), type="fecundity", c1=0, c2=0.000, c3=0, c4=1, group=3.0))
+fdat<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.0001, c2=0.0001, c3=0, c4=1, scale=1), type="fecundity", c1=0.0001, c2=0.0001, c3=0, c4=1, group=3.1))
+fdat2<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.0001, c2=0.0005, c3=0, c4=1, scale=1), type="fecundity", c1=0.0001, c2=0.0005, c3=0, c4=1, group=3.2))
+fdat3<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.0001, c3=0, c4=1, scale=1), type="fecundity", c1=0.001, c2=0.0001,  c3=0, c4=1, group=3.3))
+fdat4<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.0005, c3=0, c4=1, scale=1), type="fecundity", c1=0.001, c2=0.0001,  c3=0, c4=1, group=3.4))
 
-fdat5<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.005, c2=0.0005, c3=0, c4=1, scale=0.01), type="fecundity", c1=0.005, c2=0.0005,  c3=0, c4=1, group=3.5))
-fdat6<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.01, c3=0, c4=1, scale=0.01), type="fecundity", c1=0.001, c2=0.01,  c3=0, c4=1, group=3.6))
+fdat5<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.005, c2=0.0005, c3=0, c4=1, scale=1), type="fecundity", c1=0.005, c2=0.0005,  c3=0, c4=1, group=3.5))
+fdat6<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.01, c3=0, c4=1, scale=1), type="fecundity", c1=0.001, c2=0.01,  c3=0, c4=1, group=3.6))
 
 #add repair
-ddat<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.01, c3=0.05, c4=1, scale=0.01), type="perf repair", c1=0.001, c2=0.01, c3=0.05, c4=1, group=1.1))
-ddat2<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.01, c3=0.05, c4=3, scale=0.01), type="perf repair", c1=0.001, c2=0.01, c3=0.05, c4=3, group=1.2))
-ddat3<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.01, c3=0.2, c4=1, scale=0.01), type="perf repair", c1=0.001, c2=0.01, c3=0.2, c4=1, group=1.3))
-ddat4<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.01, c3=0.2, c4=3, scale=0.01), type="perf repair", c1=0.001, c2=0.01, c3=0.2, c4=3, group=1.4))
+ddat<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.01, c3=0.05, c4=1, scale=1), type="perf repair", c1=0.001, c2=0.01, c3=0.05, c4=1, group=1.1))
+ddat2<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.01, c3=0.05, c4=3, scale=1), type="perf repair", c1=0.001, c2=0.01, c3=0.05, c4=3, group=1.2))
+ddat3<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.01, c3=0.2, c4=1, scale=1), type="perf repair", c1=0.001, c2=0.01, c3=0.2, c4=1, group=1.3))
+ddat4<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf(ts, c1=0.001, c2=0.01, c3=0.2, c4=3, scale=1), type="perf repair", c1=0.001, c2=0.01, c3=0.2, c4=3, group=1.4))
 
 #combine
 pdat<- rbind(ddat, ddat2, ddat3, ddat4, fdat0, fdat, fdat2, fdat3, fdat4, fdat5, fdat6)
