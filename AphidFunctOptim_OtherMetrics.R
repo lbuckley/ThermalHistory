@@ -165,7 +165,7 @@ computeperf<- function(pm, series,c1,c2,c3,c4,tp=0,scale,printdam=FALSE)  {
     if(pm==4) perf= fec(series[i])
     
     damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
-  p= p + perf*(1-damage)
+  if(i>= 96) p= p + perf*(1-damage) #only store performance estimates starting at day 4
   }
 return(p*scale/length(series))
 }

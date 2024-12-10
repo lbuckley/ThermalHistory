@@ -69,9 +69,11 @@ temps.all$time<- as.numeric(temps.all$time)
 #Assemble performance
 
 #Fecundity, Longevity
-adat2.p.m= adat2.p %>%
-  group_by(NTmin) %>%
-  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Fecundtiy, na.rm = TRUE), fec.rate=mean(Fecundity.rate, na.rm = TRUE) )
+#adat2.p.m= adat2.p %>%
+#  group_by(NTmin) %>%
+#  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Fecundtiy, na.rm = TRUE), fec.rate=mean(Fecundity.rate, na.rm = TRUE) )
+#consider all replicates
+adat2.p.m= adat2.p
 
 #to long format
 adat2.p.l<- melt(adat2.p.m, id.vars = c("NTmin"), variable.name = "metric")
@@ -123,6 +125,10 @@ adat2.dt.m1$tdt<- adat2.dt.m1$dt +adat2.dt.m2$dt[match(adat2.dt.m1$NTmin, adat2.
 adat2.dt.m1$dr<- 1/adat2.dt.m1$tdt
 adat2.dt.m1$metric<- "dr"
 adat2.dt.m1$value<- adat2.dt.m1$dr
+
+#just nymphal development?
+adat2.dt.m1 <- na.omit(cbind( adat2.dt$NTminN, "dr", adat2.dt$Nymph))
+colnames(adat2.dt.m1)<- c("NTmin","metric","value")
 #--------
 
 #combine dataframes
@@ -330,8 +336,11 @@ temps.all<- rbind(temps.all, temps.l)
 adat4.var.m= adat4.var %>%
   group_by(Tmean, Tvar, population, metric) %>%
   summarise(value= mean(value))
+##drop NA
+#adat4.var.m<- adat4.var.m[-which(is.na(adat4.var.m$value)),]
+
 #drop NA
-adat4.var.m<- adat4.var.m[-which(is.na(adat4.var.m$value)),]
+adat4.var.m<- adat4.var[-which(is.na(adat4.var$value)),]
 
 adat4.var.m$treatment= paste(adat4.var.m$Tmean, adat4.var.m$Tvar, sep="_")
 
@@ -407,16 +416,19 @@ temps.all<- rbind(temps.all, temps.l)
 #developmental rate
 adat5.p$dr= 1/adat5.p$DurL
 
-#Fecundity, Longevity
-adat5.p.m= adat5.p %>%
-  group_by(Dmax_C) %>%
-  summarise(lon= mean(longevity, na.rm = TRUE), fec=mean(fecundity, na.rm = TRUE), dr=mean(dr, na.rm = TRUE) )
+# #Fecundity, Longevity
+# adat5.p.m= adat5.p %>%
+#   group_by(Dmax_C) %>%
+#   summarise(lon= mean(longevity, na.rm = TRUE), fec=mean(fecundity, na.rm = TRUE), dr=mean(dr, na.rm = TRUE) )
+
+#use all data
+adat5.p.m= adat5.p[,c("Dmax_C","longevity","fecundity","dr")]
 
 #to long format
 adat5.p.l<- melt(adat5.p.m, id.vars = c("Dmax_C"), variable.name = "metric")
+adat5.p.l$treatment<- obs$Dmax_C
 
-obs<- adat5.p.l[,c("Dmax_C","metric","value")]
-obs$treatment<- obs$Dmax_C
+obs<- obs[,c("treatment","metric","value")]
 obs$expt<- 4
 obs$population<- NA
 
@@ -574,7 +586,10 @@ adat6.p.m= adat6.p %>%
 #Also life period and immediate.death
 
 #reduce to early adult treatments
-adat6.p.m<- adat6.p.m[adat6.p.m$Treatments %in% c("AE1","AE2","AE3","AE4","AE5","AE6","NL1","NL2","NL3","NL4","NL5","NL6"),]
+#adat6.p.m<- adat6.p.m[adat6.p.m$Treatments %in% c("AE1","AE2","AE3","AE4","AE5","AE6","NL1","NL2","NL3","NL4","NL5","NL6"),]
+adat6.p.m<- adat6.p[adat6.p$Treatments %in% c("AE1","AE2","AE3","AE4","AE5","AE6","NL1","NL2","NL3","NL4","NL5","NL6"),]
+adat6.p.m$fec <- adat6.p.m$Productivity
+adat6.p.m<- adat6.p.m[,c("Treatments","Longevity","fec","dr")]
 
 #to long format
 adat6.p.l<- melt(adat6.p.m, id.vars = c("Treatments"), variable.name = "metric")
