@@ -68,13 +68,7 @@ temps.all$time<- as.numeric(temps.all$time)
 #-----
 #Assemble performance
 
-#Fecundity, Longevity
-#adat2.p.m= adat2.p %>%
-#  group_by(NTmin) %>%
-#  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Fecundtiy, na.rm = TRUE), fec.rate=mean(Fecundity.rate, na.rm = TRUE) )
-#consider all replicates
 adat2.p.m= adat2.p
-
 #to long format
 adat2.p.l<- melt(adat2.p.m, id.vars = c("NTmin"), variable.name = "metric")
 
@@ -126,9 +120,10 @@ adat2.dt.m1$dr<- 1/adat2.dt.m1$tdt
 adat2.dt.m1$metric<- "dr"
 adat2.dt.m1$value<- adat2.dt.m1$dr
 
-#just nymphal development?
+#just nymphal development since unclear how other stages line up
 adat2.dt.m1 <- na.omit(cbind( adat2.dt$NTminN, "dr", adat2.dt$Nymph))
 colnames(adat2.dt.m1)<- c("NTmin","metric","value")
+
 #--------
 
 #combine dataframes
@@ -142,7 +137,8 @@ obs$expt<- 1
 PerfDat<- obs
 
 #plot
-ggplot(data=PerfDat, aes(x=treatment, y =value))+geom_line()+facet_wrap(.~metric)
+PerfDat$value <- as.numeric(PerfDat$value)
+ggplot(data=PerfDat, aes(x=treatment, y =value))+geom_point()+facet_wrap(.~metric)
 
 #=========================================
 #Expt 2
@@ -216,7 +212,10 @@ temps.all<- rbind(temps.all, temps.l)
 #----
 #Traits
 #estimate development time
-adat3.tr$dt= adat3.tr$X1st_instar +adat3.tr$X2ed_instar +adat3.tr$X3rd_instar +adat3.tr$X4th_instar +adat3.tr$NymphDur
+#adat3.tr$dt= adat3.tr$X1st_instar +adat3.tr$X2ed_instar +adat3.tr$X3rd_instar +adat3.tr$X4th_instar +adat3.tr$NymphDur
+#just nymphs
+adat3.tr$dt= adat3.tr$NymphDur
+
 #developmental rate
 adat3.tr$dr= 1/adat3.tr$dt
 #fedundity rate
@@ -332,12 +331,6 @@ temps.all<- rbind(temps.all, temps.l)
 
 #----------
 #Tmean of 22, difference variance
-#sum performance
-adat4.var.m= adat4.var %>%
-  group_by(Tmean, Tvar, population, metric) %>%
-  summarise(value= mean(value))
-##drop NA
-#adat4.var.m<- adat4.var.m[-which(is.na(adat4.var.m$value)),]
 
 #drop NA
 adat4.var.m<- adat4.var[-which(is.na(adat4.var$value)),]
@@ -346,15 +339,6 @@ adat4.var.m$treatment= paste(adat4.var.m$Tmean, adat4.var.m$Tvar, sep="_")
 
 ggplot(data=adat4.var.m, aes(x=Tvar, y =value, color=population))+geom_point()+ geom_line()+
   facet_grid(metric~Tmean, scale="free_y")
-
-# #Different means, redundant with adat4.var
-# #sum performance
-# adat4.mean.m= adat4.mean %>%
-#   group_by(Tmean, Tvar, population, metric) %>%
-#   summarise(value= mean(value))
-# 
-# ggplot(data=adat4.mean.m, aes(x=Tvar, y =value, color=population))+geom_point()+ geom_line()+
-#   facet_grid(metric~Tmean, scale="free_y")
 
 #---------------
 #combine performance metrics
@@ -407,6 +391,8 @@ ggplot(data=temps.l, aes(x=time, y =value, color=tmax, group=tmax))+geom_line()
 temps.l<- temps.l[,c("tmax","time","value")]
 colnames(temps.l)<- c("treatment","time","temp")
 temps.l$expt<- 4
+#update treatment name
+temps.l$treatment<- gsub("Dmax_", "", temps.l$treatment)
 
 temps.all<- rbind(temps.all, temps.l)
 
@@ -415,6 +401,7 @@ temps.all<- rbind(temps.all, temps.l)
 
 #developmental rate
 adat5.p$dr= 1/adat5.p$DurL
+#nymphal data
 
 # #Fecundity, Longevity
 # adat5.p.m= adat5.p %>%
@@ -426,9 +413,9 @@ adat5.p.m= adat5.p[,c("Dmax_C","longevity","fecundity","dr")]
 
 #to long format
 adat5.p.l<- melt(adat5.p.m, id.vars = c("Dmax_C"), variable.name = "metric")
-adat5.p.l$treatment<- obs$Dmax_C
+adat5.p.l$treatment<- adat5.p.l$Dmax_C
 
-obs<- obs[,c("treatment","metric","value")]
+obs<- adat5.p.l[,c("treatment","metric","value")]
 obs$expt<- 4
 obs$population<- NA
 
@@ -580,19 +567,18 @@ temps.all<- rbind(temps.all, temps.l)
 adat6.p$dr <- 1/adat6.p$Nymph.duration
 
 #Fecundity, Longevity
-adat6.p.m= adat6.p %>%
-  group_by(Treatments) %>%
-  summarise(lon= mean(Longevity, na.rm = TRUE), fec=mean(Productivity, na.rm = TRUE), dr=mean(dr, na.rm = TRUE) )
 #Also life period and immediate.death
 
-#reduce to early adult treatments
-#adat6.p.m<- adat6.p.m[adat6.p.m$Treatments %in% c("AE1","AE2","AE3","AE4","AE5","AE6","NL1","NL2","NL3","NL4","NL5","NL6"),]
+#reduce to late nymphal and early adult treatments
 adat6.p.m<- adat6.p[adat6.p$Treatments %in% c("AE1","AE2","AE3","AE4","AE5","AE6","NL1","NL2","NL3","NL4","NL5","NL6"),]
 adat6.p.m$fec <- adat6.p.m$Productivity
 adat6.p.m<- adat6.p.m[,c("Treatments","Longevity","fec","dr")]
 
 #to long format
 adat6.p.l<- melt(adat6.p.m, id.vars = c("Treatments"), variable.name = "metric")
+
+#drop NAs
+adat6.p.l<- adat6.p.l[which(!is.na(adat6.p.l$value)),]
 
 obs<- adat6.p.l[,c("Treatments","metric","value")]
 obs$treatment<- obs$Treatments
@@ -612,11 +598,15 @@ PerfDat$metric= as.character(PerfDat$metric)
 #align names
 PerfDat$metric[which(PerfDat$metric=="fec")]="fecundity"
 PerfDat$metric[which(PerfDat$metric=="Fecundity")]="fecundity"
+PerfDat$metric[which(PerfDat$metric=="Fecundtiy")]="fecundity"
 
 PerfDat$metric[which(PerfDat$metric=="lon")]<-"longevity"
 PerfDat$metric[which(PerfDat$metric=="Longevity")]="longevity"
 
 PerfDat$metric[which(PerfDat$metric=="dr")]="dev_rate"
+
+#drop NAs
+PerfDat<- PerfDat[which(!is.na(PerfDat$value)),]
 
 #write out
 write.csv(temps.all, "TempTimeSeries.csv")

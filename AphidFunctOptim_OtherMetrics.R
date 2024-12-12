@@ -197,10 +197,10 @@ funct.fig<- ggplot(data=ps.all, aes(x=time, y =p1, color=c3, lty=factor(c4), gro
 #==================
 #FIT MODEL, compare AIC of different assumptions
 #extract fecundity values
-if(pm.ind==1) fecs<- PerfDat[PerfDat$metric=="dev_rate",]
-if(pm.ind==2) fecs<- PerfDat[PerfDat$metric=="survival",]
-if(pm.ind==3) fecs<- PerfDat[PerfDat$metric=="longevity",]
-if(pm.ind==4) fecs<- PerfDat[PerfDat$metric=="fecundity",]
+if(pm.ind==1) fecs.all<- PerfDat[PerfDat$metric=="dev_rate",]
+if(pm.ind==2) fecs.all<- PerfDat[PerfDat$metric=="survival",]
+if(pm.ind==3) fecs.all<- PerfDat[PerfDat$metric=="longevity",]
+if(pm.ind==4) fecs.all<- PerfDat[PerfDat$metric=="fecundity",]
 
 #compare AICs of fits
 #1. fit 4 params
@@ -213,20 +213,47 @@ opts.scale= array(NA, dim=c(5,4,6), dimnames = list(c("e1","e2","e3","e4","e5"),
 opts= array(NA, dim=c(5,4,6), dimnames = list(c("e1","e2","e3","e4","e5"), c("s1","s2","s3","s4"), c("c1","c2","c3","c4","tp","scale")))
 fit= array(NA, dim=c(5,4,2), dimnames = list(c("e1","e2","e3","e4","e5"), c("s1","s2","s3","s4"), c("aic","convergence")))
 
-#loop through 5 experiments
-for(expt in c(1:2,4:5,3)){
+#loop through 5 experiments 
+for(expt in c(1:5)){
 
+  fecs<- fecs.all[fecs.all$expt==expt,]
+  temp<- temps.all[temps.all$expt==expt,]
+  
 #check that data exist
 if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   
   #account for field and lab populations in Figure 3
-  if(expt==3) fecs<- fecs[which(fecs$population=="field"),]
+  if(expt==3) fecs<- fecs[which(fecs$population=="lab"),] #field estimates large
+  
+  #restrict treatments to test fitting #CHECK
+  if(expt==2){
+    fecs<- fecs[which(fecs$treatment %in% c("2_1_1", "2_2_1","2_1_2","2_2_2","2_3_2") ),]
+    temp<- temp[which(temp$treatment %in% c("2_1_1", "2_2_1","2_1_2","2_2_2","2_3_2") ),]
+  }
+  
+  if(expt==3){
+    fecs<- fecs[which(fecs$treatment %in% c("22_0", "22_5", "22_9", "22_13") ),]
+    temp<- temp[which(temp$treatment %in% c("22_0", "22_5", "22_9", "22_13") ),]
+  }
+  
+  if(expt==5){
+    fecs<- fecs[which(fecs$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6") ),]
+    temp<- temp[which(temp$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6") ),]
+  }
+  
+  #scale
   scale.est= 1
+  
+  #if performance with out damage is less than observed fecundity, adjust scale
+  perf.est<- mean(perf.nodamage(pm=pm.ind, temp[,"temp"], scale=1))
+  fec.ratio= mean(fecs[fecs$expt==expt,"value"]) / perf.est
+  if(fec.ratio>1) scale.est<- fec.ratio
+ 
   #-----------
 #optimize
   #1. fit scale four parameters
   #error function
-  errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
+  errs<- function(x,temps=temp, fecundity=fecs, scale=scale.est){  
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
@@ -251,7 +278,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   fit[expt,1,]<- c(opt$value, opt$convergence)
   
   #2. fit tp
-  errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
+  errs<- function(x,temps=temp, fecundity=fecs, scale=scale.est){  
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
@@ -277,7 +304,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   fit[expt,2,]<- c(opt$value, opt$convergence)
   
   #3. drop c1
-  errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
+  errs<- function(x,temps=temp, fecundity=fecs, scale=scale.est){  
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
@@ -303,7 +330,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   fit[expt,3,]<- c(opt$value, opt$convergence)
   
   #4. drop c2 with floor for damage c2=0.000001
-  errs<- function(x,temps=temps.all[temps.all$expt==expt,], fecundity=fecs[fecs$expt==expt,], scale=scale.est){  
+  errs<- function(x, temps=temp, fecundity=fecs, scale=scale.est){  
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
@@ -368,9 +395,9 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
 #=====================
 #plot performance with values
 
-expt<- 4
+expt<- 5
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scen<- 2
+scen<- 1
 
 #extract performance values
 if(pm.ind==1) fecs<- PerfDat[PerfDat$metric=="dev_rate",]
@@ -528,7 +555,7 @@ if(expt==3){
     theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")
 }
 
-if(exp==5){ 
+if(expt==5){ 
   #aggregate
   d1.agg= aggregate(.~metric+treatment+group, d1, mean)
   d1.agg= d1.agg[-which(d1.agg$metric=="temperature"), c(1:4)]
@@ -594,13 +621,13 @@ if(expt==5){
 #------------------------------------
 #Plot developmental rate comparisons
 
-plot2.expt1= plot2.expt1 + theme(legend.position = "none")
-plot2.expt2= plot2.expt2 + theme(legend.position = "none")
-plot2.expt3= plot2.expt3 + guides(colour = guide_legend(nrow = 3))
-
-pdf("Fig_DevRate.pdf",height = 10, width = 6)
-  print(plot2.expt1 +plot2.expt2 +plot2.expt3 +plot2.expt4 +plot2.expt5 +plot_layout(ncol=2, heights = c(1, 1, 1.2))+ plot_annotation(tag_levels = 'A') )
-dev.off()
+# plot2.expt1= plot2.expt1 + theme(legend.position = "none")
+# plot2.expt2= plot2.expt2 + theme(legend.position = "none")
+# plot2.expt3= plot2.expt3 + guides(colour = guide_legend(nrow = 3))
+# 
+# pdf("Fig_DevRate.pdf",height = 10, width = 6)
+#   print(plot2.expt1 +plot2.expt2 +plot2.expt3 +plot2.expt4 +plot2.expt5 +plot_layout(ncol=2, heights = c(1, 1, 1.2))+ plot_annotation(tag_levels = 'A') )
+# dev.off()
 
 
 
