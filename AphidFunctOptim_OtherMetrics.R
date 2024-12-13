@@ -12,7 +12,12 @@ library(TrenchR)
 library(rvmethod) #gaussian function
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
+
+#performance metric
+pms<- c("dr", "sur", "long", "fec")
+#pick metric
+pm.ind<- 1
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -81,10 +86,6 @@ fec= function(T, a= -69.1, b=12.49, c= -0.34){
 # c2: d_linear: linear increase in damage
 # c3: r_mag: magnitude of repair
 # c4: r_breadth: breadth of repair function around Topt
-
-#performance metric
-pms<- c("dr", "sur", "long", "fec")
-pm.ind<- 4
 
 #find Topt and CTmax
 ts=seq(0,40,0.1)
@@ -214,7 +215,7 @@ opts= array(NA, dim=c(7,4,6), dimnames = list(c("e1","e2","e3","e4","e5","e6","e
 fit= array(NA, dim=c(7,4,2), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4"), c("aic","convergence")))
 
 #loop through 7 experiments 
-for(expt in c(1:7)){ #1:7
+for(expt in c(1:7)){ 
 
   fecs<- fecs.all[fecs.all$expt==expt,]
   tempse<- temps.all[temps.all$expt==expt,]
@@ -371,8 +372,9 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   out<- rbind(expt1, expt2, expt3, expt4, expt5, expt6, expt7)
   colnames(out)[3:ncol(out)]<- c("d_mult","d_linear","r_mag","r_breadth","tp","scale","AIC","converge?")
   out<- as.data.frame(out)
-  out[,2:8]<- round(as.numeric(unlist(out[,2:8])), 4)
-  out[9]<- round(as.numeric(unlist(out[9])),0)
+  out[,c(2:3,5:8)]<- round(as.numeric(unlist(out[,c(2:3,5:8)])), 4)
+  out[,4]<- round(as.numeric(unlist(out[,4])), 6)
+  out[,9]<- round(as.numeric(unlist(out[,9])),0)
   
   out.scale<- rbind(opts.scale[1,,], opts.scale[2,,], opts.scale[3,,])
   
