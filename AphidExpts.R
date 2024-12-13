@@ -15,6 +15,15 @@ desktop<- "y"
 
 #Analysis for English grain aphid, Sitobion avenae
 
+#Experiments, reorder?
+#Expt 1: vary min
+#Expt 2: vary max
+#Expt 3: vary variance (expt 3, mild means)
+#Expt 4: vary means and variance (expt 3, high means)
+#Expt 5: vary duration of heatwave (expt 2)
+#Expt 6: vary length of heatwave and timing (expt 5 adult)
+#Expt 7: vary length of heatwave and timing (expt 5 nymph)
+
 #=====
 #Expt 1
 #Zhao et al. 2014. Night warming on hot days produces novel impacts on development, survival and reproduction in a small arthropod

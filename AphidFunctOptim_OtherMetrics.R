@@ -12,7 +12,7 @@ library(TrenchR)
 library(rvmethod) #gaussian function
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -217,43 +217,54 @@ fit= array(NA, dim=c(5,4,2), dimnames = list(c("e1","e2","e3","e4","e5"), c("s1"
 for(expt in c(1:5)){
 
   fecs<- fecs.all[fecs.all$expt==expt,]
-  temp<- temps.all[temps.all$expt==expt,]
+  tempse<- temps.all[temps.all$expt==expt,]
   
 #check that data exist
 if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   
   #account for field and lab populations in Figure 3
-  if(expt==3) fecs<- fecs[which(fecs$population=="lab"),] #field estimates large
-  
-  #restrict treatments to test fitting #CHECK
-  if(expt==2){
-    fecs<- fecs[which(fecs$treatment %in% c("2_1_1", "2_2_1","2_1_2","2_2_2","2_3_2") ),]
-    temp<- temp[which(temp$treatment %in% c("2_1_1", "2_2_1","2_1_2","2_2_2","2_3_2") ),]
-  }
-  
+  #drop treatments with no estimated performance
   if(expt==3){
-    fecs<- fecs[which(fecs$treatment %in% c("22_0", "22_5", "22_9", "22_13") ),]
-    temp<- temp[which(temp$treatment %in% c("22_0", "22_5", "22_9", "22_13") ),]
+    fecs<- fecs[which(fecs$population=="lab"),] #field estimates large
+  fecs<- fecs[-which(fecs$treatment %in% c("30_0","32_0")),]
+  tempse<- tempse[-which(tempse$treatment %in% c("30_0","32_0")),]
   }
   
-  if(expt==5){
-    fecs<- fecs[which(fecs$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6") ),]
-    temp<- temp[which(temp$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6") ),]
-  }
+  # #restrict treatments to test fitting #CHECK
+  # if(expt==2){
+  #   fecs<- fecs[which(fecs$treatment %in% c("2_1_1", "2_2_1","2_1_2","2_2_2","2_3_2") ),]
+  #   tempse<- tempse[which(tempse$treatment %in% c("2_1_1", "2_2_1","2_1_2","2_2_2","2_3_2") ),]
+  # }
+  # 
+  # if(expt==3){
+  #   fecs<- fecs[which(fecs$treatment %in% c("22_0", "22_5", "22_9", "22_13") ),]
+  #   tempse<- tempse[which(tempse$treatment %in% c("22_0", "22_5", "22_9", "22_13") ),]
+  # }
+  # 
+  # if(expt==5){
+  #   fecs<- fecs[which(fecs$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6") ),]
+  #   tempse<- tempse[which(tempse$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6") ),]
+  # }
   
   #scale
   scale.est= 1
   
   #if performance with out damage is less than observed fecundity, adjust scale
-  perf.est<- mean(perf.nodamage(pm=pm.ind, temp[,"temp"], scale=1))
-  fec.ratio= mean(fecs[fecs$expt==expt,"value"]) / perf.est
-  if(fec.ratio>1) scale.est<- fec.ratio
+  #performance estimation by treatment
+  tempse$p.nd<- perf.nodamage(pm=pm.ind, tempse[,"temp"], scale=1)
+  #mean by treatment
+  p.nd.t<- aggregate(tempse, list(treat=tempse$treatment), FUN="mean")
+  f.t<- aggregate(fecs, list(treat=fecs$treatment), FUN="mean")
+  
+  match1<- match(p.nd.t$treat, f.t$treat)
+  p.nd.t$fec.ratio= f.t$value[match1]/p.nd.t$p.nd
+  if(max(p.nd.t$fec.ratio)>1) scale.est<- max(p.nd.t$fec.ratio)
  
   #-----------
 #optimize
   #1. fit scale four parameters
   #error function
-  errs<- function(x,temps=temp, fecundity=fecs, scale=scale.est){  
+  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){  
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
@@ -278,7 +289,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   fit[expt,1,]<- c(opt$value, opt$convergence)
   
   #2. fit tp
-  errs<- function(x,temps=temp, fecundity=fecs, scale=scale.est){  
+  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){  
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
@@ -304,7 +315,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   fit[expt,2,]<- c(opt$value, opt$convergence)
   
   #3. drop c1
-  errs<- function(x,temps=temp, fecundity=fecs, scale=scale.est){  
+  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){  
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
@@ -330,7 +341,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   fit[expt,3,]<- c(opt$value, opt$convergence)
   
   #4. drop c2 with floor for damage c2=0.000001
-  errs<- function(x, temps=temp, fecundity=fecs, scale=scale.est){  
+  errs<- function(x, temps=tempse, fecundity=fecs, scale=scale.est){  
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
@@ -361,7 +372,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   #opt$par + 1.96*sqrt(diag(solve(opt$hessian)))/n # upper limit for 95% confint
   
 } #end check data exists
-} #end loop experiments
+} #end loop experiments 1:5
   
   #-----------------
   #Construct table
@@ -397,7 +408,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
 
 expt<- 5
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scen<- 1
+scen<- 2
 
 #extract performance values
 if(pm.ind==1) fecs<- PerfDat[PerfDat$metric=="dev_rate",]
