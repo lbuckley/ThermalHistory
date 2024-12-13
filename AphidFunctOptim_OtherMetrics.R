@@ -209,12 +209,12 @@ if(pm.ind==4) fecs.all<- PerfDat[PerfDat$metric=="fecundity",]
 #4. drop c2 with floor for damage c2=0.000001
 
 #store output
-opts.scale= array(NA, dim=c(5,4,6), dimnames = list(c("e1","e2","e3","e4","e5"), c("s1","s2","s3","s4"), c("c1","c2","c3","c4","tp","scale")))
-opts= array(NA, dim=c(5,4,6), dimnames = list(c("e1","e2","e3","e4","e5"), c("s1","s2","s3","s4"), c("c1","c2","c3","c4","tp","scale")))
-fit= array(NA, dim=c(5,4,2), dimnames = list(c("e1","e2","e3","e4","e5"), c("s1","s2","s3","s4"), c("aic","convergence")))
+opts.scale= array(NA, dim=c(7,4,6), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4"), c("c1","c2","c3","c4","tp","scale")))
+opts= array(NA, dim=c(7,4,6), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4"), c("c1","c2","c3","c4","tp","scale")))
+fit= array(NA, dim=c(7,4,2), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4"), c("aic","convergence")))
 
-#loop through 5 experiments 
-for(expt in c(1:5)){
+#loop through 7 experiments 
+for(expt in c(1:7)){ #1:7
 
   fecs<- fecs.all[fecs.all$expt==expt,]
   tempse<- temps.all[temps.all$expt==expt,]
@@ -222,29 +222,13 @@ for(expt in c(1:5)){
 #check that data exist
 if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   
-  #account for field and lab populations in Figure 3
+  #account for field and lab populations in Figure 4
   #drop treatments with no estimated performance
-  if(expt==3){
+  if(expt==4){
     fecs<- fecs[which(fecs$population=="lab"),] #field estimates large
   fecs<- fecs[-which(fecs$treatment %in% c("30_0","32_0")),]
   tempse<- tempse[-which(tempse$treatment %in% c("30_0","32_0")),]
   }
-  
-  # #restrict treatments to test fitting #CHECK
-  # if(expt==2){
-  #   fecs<- fecs[which(fecs$treatment %in% c("2_1_1", "2_2_1","2_1_2","2_2_2","2_3_2") ),]
-  #   tempse<- tempse[which(tempse$treatment %in% c("2_1_1", "2_2_1","2_1_2","2_2_2","2_3_2") ),]
-  # }
-  # 
-  # if(expt==3){
-  #   fecs<- fecs[which(fecs$treatment %in% c("22_0", "22_5", "22_9", "22_13") ),]
-  #   tempse<- tempse[which(tempse$treatment %in% c("22_0", "22_5", "22_9", "22_13") ),]
-  # }
-  # 
-  # if(expt==5){
-  #   fecs<- fecs[which(fecs$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6") ),]
-  #   tempse<- tempse[which(tempse$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6") ),]
-  # }
   
   #scale
   scale.est= 1
@@ -372,7 +356,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   #opt$par + 1.96*sqrt(diag(solve(opt$hessian)))/n # upper limit for 95% confint
   
 } #end check data exists
-} #end loop experiments 1:5
+} #end loop experiments
   
   #-----------------
   #Construct table
@@ -381,8 +365,10 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   expt3<- cbind(expt="3", scenario=1:4, opts[3,,], fit[3,,])
   expt4<- cbind(expt="4", scenario=1:4, opts[4,,], fit[4,,])
   expt5<- cbind(expt="5", scenario=1:4, opts[5,,], fit[5,,])
+  expt6<- cbind(expt="6", scenario=1:4, opts[6,,], fit[6,,])
+  expt7<- cbind(expt="7", scenario=1:4, opts[7,,], fit[7,,])
   
-  out<- rbind(expt1, expt2, expt3, expt4, expt5)
+  out<- rbind(expt1, expt2, expt3, expt4, expt5, expt6, expt7)
   colnames(out)[3:ncol(out)]<- c("d_mult","d_linear","r_mag","r_breadth","tp","scale","AIC","converge?")
   out<- as.data.frame(out)
   out[,2:8]<- round(as.numeric(unlist(out[,2:8])), 4)
@@ -406,9 +392,9 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
 #=====================
 #plot performance with values
 
-expt<- 5
+expt<- 1
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scen<- 2
+scen<- 1
 
 #extract performance values
 if(pm.ind==1) fecs<- PerfDat[PerfDat$metric=="dev_rate",]
@@ -439,10 +425,10 @@ d1$metric <- factor(d1$metric, ordered=TRUE, levels=c("temperature", "performanc
 
 #----------------
 #plot time series
-#expt 1
-if(expt %in% c(1,4) ){ 
+#expt 1 and 2
+if(expt %in% c(1,2) ){ 
   
-  if(expt==4){ 
+  if(expt==2){ 
     #strip Dmax_
     d1$treatment <- gsub("Dmax_", "", d1$treatment)}
   
@@ -451,20 +437,7 @@ if(expt %in% c(1,4) ){
   theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)+labs(color="treatment")
 }
   
-#expt 2
-if(expt==2){
-  #code levels
-  treats= matrix(unlist(strsplit(d1$treatment, split = "_")),ncol=3,byrow=T)
-  colnames(treats)=c("hotdays","normaldays","first") #first: 1 is n, 2 is h
-  d1= cbind(d1, treats)  
-  d1$hotdays <- revalue(d1$hotdays, c("1" = "hotdays: 1", "2" = "hotdays: 2", "3" = "hotdays:3"))
-  
-  plot1.expt2= ggplot(data=d1[d1$first==1,], aes(x=time, y =value, color=factor(normaldays)))+geom_line(lwd=1.5)+facet_grid(metric~hotdays, scale="free_y", switch="y")+xlim(0,100)+
-  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)+labs(color="normal days")
-#put other first in supplement
-  }
-
-#expt 3
+#expt 3 and 4
 if(expt==3){ 
   #code levels
   treats= matrix(unlist(strsplit(d1$treatment, split = "_")),ncol=2,byrow=T)
@@ -480,7 +453,20 @@ if(expt==3){
 }
 
 #expt 5
-if(expt==5){ 
+if(expt==5){
+  #code levels
+  treats= matrix(unlist(strsplit(d1$treatment, split = "_")),ncol=3,byrow=T)
+  colnames(treats)=c("hotdays","normaldays","first") #first: 1 is n, 2 is h
+  d1= cbind(d1, treats)  
+  d1$hotdays <- revalue(d1$hotdays, c("1" = "hotdays: 1", "2" = "hotdays: 2", "3" = "hotdays:3"))
+  
+  plot1.expt2= ggplot(data=d1[d1$first==1,], aes(x=time, y =value, color=factor(normaldays)))+geom_line(lwd=1.5)+facet_grid(metric~hotdays, scale="free_y", switch="y")+xlim(0,100)+
+    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)+labs(color="normal days")
+  #put other first in supplement
+}
+
+#expt 6
+if(expt %in% c(6,7)){ 
   #code groups
   d1$group<- "nymphal heatwave"
   d1$group[d1$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6")]<- "adult heatwave"
