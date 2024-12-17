@@ -10,6 +10,7 @@ library(deSolve)
 library(pracma)				# contains sigmoid function
 library(TrenchR)
 library(rvmethod) #gaussian function
+library(dfoptim)
 
 #toggle between desktop (y) and laptop (n)
 desktop<- "y"
@@ -17,7 +18,7 @@ desktop<- "y"
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
 #pick metric
-pm.ind<- 1
+pm.ind<- 4
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -105,18 +106,15 @@ ctmin= ts[which(ft>0)[1]-1]
 # plot(ts, long(ts))
 # plot(ts, fec(ts))
 
-#old damage functions
-#damagenew= damage + dt * exp(-Ea/(R*(T+273.15))) *10^9* (c1*damage + c2) + dt*c3
-
 #make repair depend on distance from Topt
 #plot(1:40, gaussfunc(1:40, mu = Topt, sigma = 1))
 damage.rep<- function(damage.p, T, c1, c2, c3, c4, tp=0, dt, Topt=topt, CTmax=ctmax)  
 { Tdamage= Topt + (CTmax-Topt)*tp
 Tdif= T-Tdamage
-Tdif[which(Tdif<0)]<- 0
+if(length(which(Tdif<0))>0) Tdif[which(Tdif<0)]<- 0
 damage.p= damage.p + dt*Tdif*(c1*damage.p + c2) 
-damage.p[which(damage.p<0)]<-0
-damage.p[which(damage.p>1)]<-1
+if(length(which(damage.p<0))>0) damage.p[which(damage.p<0)]<-0
+if(length(which(damage.p>1))>0) damage.p[which(damage.p>1)]<-1
 #repair
 damage.p= damage.p*(1-c3*gaussfunc(T, mu = Topt, sigma = c4))
 return(damage.p)
@@ -212,7 +210,7 @@ if(pm.ind==4) fecs.all<- PerfDat[PerfDat$metric=="fecundity",]
 #store output
 opts.scale= array(NA, dim=c(7,4,6), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4"), c("c1","c2","c3","c4","tp","scale")))
 opts= array(NA, dim=c(7,4,6), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4"), c("c1","c2","c3","c4","tp","scale")))
-fit= array(NA, dim=c(7,4,2), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4"), c("aic","convergence")))
+fit= array(NA, dim=c(7,4,3), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4"), c("sse","convergence","aic")))
 
 #loop through 7 experiments 
 for(expt in c(1:7)){ 
@@ -253,25 +251,20 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale))
-      totalerror=totalerror + delta^2
-      
-      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
-      #totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
-    }
+      delta=fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale)
+      totalerror=totalerror + sum(delta^2)
+      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/; https://stats.stackexchange.com/questions/87345/calculating-aic-by-hand-in-r
+      #totalerror= totalerror + nrow(fecundity[which(fecundity$treatment==treats[i]),])*(log(2*pi)+1+log((sum(delta^2)/nrow(fecundity[which(fecundity$treatment==treats[i]),]) )))+((length(x)+1)*2)
+      }
     return( sqrt(totalerror) )
     #return(totalerror)
   }
   
-  opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-              lower=c(0,0.000001,0,0), upper=c(5,2,1,5) ) #, control = list(trace=2)
+  opt<- nmkb(fn=errs, par=c(1,0.001,0.1,1), lower=c(0,0.000001,0,0), upper=c(2,1,1,5))
   
-  if(opt$convergence !=0){
-    opt<- optim(par=c(1,0.001,0.1,1), fn=errs, NULL, method=c("BFGS") )
-  }
-  
+  #store output and fits
   opts[expt,1,]<- c(opt$par[1:4], 0, scale.est)
-  fit[expt,1,]<- c(opt$value, opt$convergence)
+  fit[expt,1,1:2]<- c(opt$value, opt$convergence)
   
   #2. fit tp
   errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){  
@@ -279,25 +272,19 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
       delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=x[5],scale=scale))
-      totalerror=totalerror + delta^2
-      
-      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
-      #totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
+      totalerror=totalerror + sum(delta^2)
+      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/; https://stats.stackexchange.com/questions/87345/calculating-aic-by-hand-in-r
+      #totalerror= totalerror + nrow(fecundity[which(fecundity$treatment==treats[i]),])*(log(2*pi)+1+log((sum(delta^2)/nrow(fecundity[which(fecundity$treatment==treats[i]),]) )))+((length(x)+1)*2)
     }
     return( sqrt(totalerror) )
     #return(totalerror)
   }
   
-  opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("L-BFGS-B"), 
-              lower=c(0,0.000001,0,0,0), upper=c(5,2,1,5,1) )
+  opt<- nmkb(fn=errs, par=c(1,0.001,0.1,1,0.5), lower=c(0,0.000001,0,0,0), upper=c(2,2,1,5,1) )
   
-  if(opt$convergence !=0){
-    opt<- optim(par=c(1,0.001,0.1,1,0), fn=errs, NULL, method=c("BFGS") )
-  }
-
   #store output and fits
   opts[expt,2,]<- c(opt$par, scale.est)
-  fit[expt,2,]<- c(opt$value, opt$convergence)
+  fit[expt,2,1:2]<- c(opt$value, opt$convergence)
   
   #3. drop c1
   errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){  
@@ -305,25 +292,19 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
       delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],c4=x[3],scale=scale))
-      totalerror=totalerror + delta^2
-      
-      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
-      #totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
+      totalerror=totalerror + sum(delta^2)
+      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/; https://stats.stackexchange.com/questions/87345/calculating-aic-by-hand-in-r
+      #totalerror= totalerror + nrow(fecundity[which(fecundity$treatment==treats[i]),])*(log(2*pi)+1+log((sum(delta^2)/nrow(fecundity[which(fecundity$treatment==treats[i]),]) )))+((length(x)+1)*2)
     }
     return( sqrt(totalerror) )
     #return(totalerror)
   }
   
-  opt<- optim(par=c(0.001,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-              lower=c(0.000001,0,1), upper=c(2,1,3) )
-  
-  if(opt$convergence !=0){
-    opt<- optim(par=c(0.001,0.1,1), fn=errs, NULL, method=c("BFGS") )
-  }
+  opt<- nmkb(fn=errs, par=c(0.001,0.1,1), lower=c(0.000001,0,0), upper=c(2,1,5) )
   
   #store output and fits
   opts[expt,3,]<- c(0, opt$par, 0, scale.est)
-  fit[expt,3,]<- c(opt$value, opt$convergence)
+  fit[expt,3,1:2]<- c(opt$value, opt$convergence)
   
   #4. drop c2 with floor for damage c2=0.000001
   errs<- function(x, temps=tempse, fecundity=fecs, scale=scale.est){  
@@ -331,30 +312,36 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
       delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0.0005,c3=x[2],c4=x[3],scale=scale))
-      totalerror=totalerror + delta^2
-      
-      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/
-      #totalerror= totalerror + length(fecundity[which(fecundity$treatment==treats[i]),"value"])*(log(2*pi)+1+log((sum(delta^2)/length(fecundity[which(fecundity$treatment==treats[i]),"value"])))) + ((length(x)+1)*2)
+      totalerror=totalerror + sum(delta^2)
+      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/; https://stats.stackexchange.com/questions/87345/calculating-aic-by-hand-in-r
+      #totalerror= totalerror + nrow(fecundity[which(fecundity$treatment==treats[i]),])*(log(2*pi)+1+log((sum(delta^2)/nrow(fecundity[which(fecundity$treatment==treats[i]),]) )))+((length(x)+1)*2)
     }
     return( sqrt(totalerror) )
     #return(totalerror)
   }
   
-  opt<- optim(par=c(1,0.1,1), fn=errs, NULL, method=c("L-BFGS-B"), 
-              lower=c(0,0,0), upper=c(5,1,5) )
-  
-  if(opt$convergence !=0){
-    opt<- optim(par=c(1,0.1,1), fn=errs, NULL, method=c("BFGS"), hessian=TRUE )
-  }
+  opt<- nmkb(fn=errs, par=c(1,0.1,1), lower=c(0,0,0), upper=c(2,1,5) )
   
   #store output and fits
   opts[expt,4,]<- c(opt$par[1], 0.000001, opt$par[2:3], 0, scale.est)
-  fit[expt,4,]<- c(opt$value, opt$convergence)
+  fit[expt,4,1:2]<- c(opt$value, opt$convergence)
   
-  #95% CI
-  #n <- nrow(temps.all[temps.all$expt==expt,])
-  #opt$par - 1.96*sqrt(diag(solve(opt$hessian)))/n # lower limit for 95% confint
-  #opt$par + 1.96*sqrt(diag(solve(opt$hessian)))/n # upper limit for 95% confint
+  #---------
+  #estimate AICs
+  
+  temps=tempse
+  fecundity=fecs
+  treats=unique(temps$treatment)
+  
+  for(scen in 1:4){
+    totalerror=0
+    for(i in 1:length(treats)){
+      delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=opts[expt,scen,1],c2=opts[expt,scen,2],c3=opts[expt,scen,3],c4=opts[expt,scen,4],tp=opts[expt,scen,5],scale=opts[expt,scen,6]))
+      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/; https://stats.stackexchange.com/questions/87345/calculating-aic-by-hand-in-r
+      totalerror= totalerror + nrow(fecundity[which(fecundity$treatment==treats[i]),])*(log(2*pi)+1+log((sum(delta^2)/nrow(fecundity[which(fecundity$treatment==treats[i]),]) )))+((length(x)+1)*2)
+    }
+    fit[expt, scen,3]= totalerror
+  }
   
 } #end check data exists
 } #end loop experiments
@@ -370,11 +357,11 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   expt7<- cbind(expt="7", scenario=1:4, opts[7,,], fit[7,,])
   
   out<- rbind(expt1, expt2, expt3, expt4, expt5, expt6, expt7)
-  colnames(out)[3:ncol(out)]<- c("d_mult","d_linear","r_mag","r_breadth","tp","scale","AIC","converge?")
+  colnames(out)[3:ncol(out)]<- c("d_mult","d_linear","r_mag","r_breadth","tp","scale","sse","converge?","AIC")
   out<- as.data.frame(out)
   out[,c(2:3,5:8)]<- round(as.numeric(unlist(out[,c(2:3,5:8)])), 4)
   out[,4]<- round(as.numeric(unlist(out[,4])), 6)
-  out[,9]<- round(as.numeric(unlist(out[,9])),0)
+  out[,c(9,11)]<- round(as.numeric(unlist(out[,c(9,11)])),0)
   
   out.scale<- rbind(opts.scale[1,,], opts.scale[2,,], opts.scale[3,,])
   
@@ -391,242 +378,3 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   #efficient package: https://cran.r-project.org/web/packages/lbfgs/vignettes/Vignette.pdf
   #https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/
   
-#=====================
-#plot performance with values
-
-expt<- 1
-#scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scen<- 1
-
-#extract performance values
-if(pm.ind==1) fecs<- PerfDat[PerfDat$metric=="dev_rate",]
-if(pm.ind==2) fecs<- PerfDat[PerfDat$metric=="survival",]
-if(pm.ind==3) fecs<- PerfDat[PerfDat$metric=="longevity",]
-if(pm.ind==4) fecs<- PerfDat[PerfDat$metric=="fecundity",]
-
-temps.expt<- temps.all[temps.all$expt==expt,]
-
-p1= perf(pm=pm.ind, temps.expt$temp, c1=opts[expt, scen, 1], c2=opts[expt, scen, 2], c3=opts[expt, scen, 3], c4=opts[expt, scen, 4], tp=opts[expt, scen, 5], scale=opts[expt, scen, 6])
-p1.nd= perf.nodamage(pm=pm.ind, temps.expt$temp, scale=opts[expt, scen, 6])
-
-d1<- data.frame(metric="perf.nd",value=p1.nd, time=temps.expt$time, treatment=temps.expt$treatment) 
-d2<- data.frame(metric="perf",value=p1, time=temps.expt$time, treatment=temps.expt$treatment)
-d3<- data.frame(metric="temp",value=temps.expt$temp, time=temps.expt$time, treatment=temps.expt$treatment)
-d1<- rbind(d1,d2,d3)        
-          
-d1$value <- as.numeric(d1$value)
-d1$time <- as.numeric(d1$time)
-d1$metric <- revalue(d1$metric, c("temp" = "temperature", "perf.nd" = "performance no damage", "perf" = "performance with damage"))
-d1$metric <- factor(d1$metric, ordered=TRUE, levels=c("temperature", "performance no damage", "performance with damage"))
-
-# if(expt==2) d1$treatment <- factor(d1$treatment, ordered=TRUE, levels=c(
-#   "1_3_1", "1_2_1", "1_1_1", "2_3_1", "2_2_1", "2_1_1", "3_3_1", "3_2_1", "3_1_1",
-#   "1_3_2", "1_2_2", "1_1_2", "2_3_2", "2_2_2", "2_1_2", "3_3_2", "3_2_2", "3_1_2"))
-# if(expt==3) d1$treatment <- factor(d1$treatment, ordered=TRUE, levels=c(
-#   "22_0", "22_5", "22_9",  "22_13", "28_0", "30_0", "32_0", "28_5", "30_5", "32_5"))
-
-#----------------
-#plot time series
-#expt 1 and 2
-if(expt %in% c(1,2) ){ 
-  
-  if(expt==2){ 
-    #strip Dmax_
-    d1$treatment <- gsub("Dmax_", "", d1$treatment)}
-  
-  d1$treatment <- factor(d1$treatment)
-  plot1.expt1= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment)))+geom_line(lwd=1.5)+facet_wrap(.~metric, scale="free_y", switch="y", ncol=1)+xlim(0,100)+
-  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)+labs(color="treatment")
-}
-  
-#expt 3 and 4
-if(expt==3){ 
-  #code levels
-  treats= matrix(unlist(strsplit(d1$treatment, split = "_")),ncol=2,byrow=T)
-  colnames(treats)=c("mean","variance") 
-  d1= cbind(d1, treats)  
-  #code experiment
-  d1$expt<- "mild means"
-  d1$expt[d1$treatment %in% c("28_0", "30_0", "32_0", "28_5", "30_5", "32_5")]<- "high means"
-  d1$expt<- factor(d1$expt, ordered=TRUE, levels=c("mild means","high means") )
-  
-  plot1.expt3= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), group=treatment))+geom_line(lwd=1.5)+facet_grid(metric~expt, scale="free_y", switch="y")+xlim(0,100)+
-    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)+labs(color="treatment")
-}
-
-#expt 5
-if(expt==5){
-  #code levels
-  treats= matrix(unlist(strsplit(d1$treatment, split = "_")),ncol=3,byrow=T)
-  colnames(treats)=c("hotdays","normaldays","first") #first: 1 is n, 2 is h
-  d1= cbind(d1, treats)  
-  d1$hotdays <- revalue(d1$hotdays, c("1" = "hotdays: 1", "2" = "hotdays: 2", "3" = "hotdays:3"))
-  
-  plot1.expt2= ggplot(data=d1[d1$first==1,], aes(x=time, y =value, color=factor(normaldays)))+geom_line(lwd=1.5)+facet_grid(metric~hotdays, scale="free_y", switch="y")+xlim(0,100)+
-    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)+labs(color="normal days")
-  #put other first in supplement
-}
-
-#expt 6
-if(expt %in% c(6,7)){ 
-  #code groups
-  d1$group<- "nymphal heatwave"
-  d1$group[d1$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6")]<- "adult heatwave"
-  
-  d1$treatment <- factor(d1$treatment)
-  plot1.expt5= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment)))+geom_line(lwd=1.5)+
-    facet_grid(metric~group, scale="free_y", switch="y")+xlim(0,500)+
-    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_viridis(discrete = TRUE)+labs(color="treatment")
-}
-
-#----------  
-#plot outcomes
-if(expt%in% c(1,4)){ 
-  #aggregate
-  d1.agg= aggregate(.~metric+treatment, d1, mean)
-  d1.agg= d1.agg[-which(d1.agg$metric=="temperature"), 1:3]
-  
-  #add observed
-  fdat<- fecs[fecs$expt==expt,c("metric","treatment", "value" )]
-  fdat<- aggregate(.~metric+treatment, fdat, mean)
-  d1.agg<- rbind(d1.agg, fdat)
-  
-  plot2.expt1= ggplot(data=d1.agg, aes(x=treatment, y =value, color=metric, group=metric))+geom_point(size=2)+geom_line(lwd=1.5)+
-  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))
-}
-  
-if(expt==2){
-  #aggregate
-  d1.agg= aggregate(.~metric+treatment, d1[,1:4], mean)
-  d1.agg= d1.agg[-which(d1.agg$metric=="temperature"), 1:3]
-  
-  #add observed
-  fdat<- fecs[fecs$expt==expt,c("metric","treatment", "value" )]
-  fdat<- aggregate(.~metric+treatment, fdat, mean)
-  d1.agg<- rbind(d1.agg, fdat)
-  
-  #code levels
-  treats= matrix(unlist(strsplit(d1.agg$treatment, split = "_")),ncol=3,byrow=T)
-  colnames(treats)=c("hotdays","normaldays","first") #first: 1 is n, 2 is h
-  d1.agg= cbind(d1.agg, treats)  
-  d1.agg$hotdays <- revalue(d1.agg$hotdays, c("1" = "hotdays: 1", "2" = "hotdays: 2", "3" = "hotdays:3"))
-  
-  plot2.expt2= ggplot(data=d1.agg[d1.agg$first==1,], aes(x=normaldays, y =value, color=metric, group=metric))+geom_point(size=2)+geom_line(lwd=1.5)+
-    facet_grid(.~hotdays, scale="free_y", switch="y")+
-  theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")
-  #put other first in supplement
-}
-
-if(expt==3){ 
-  #aggregate
-  d1.agg= aggregate(.~metric+treatment, d1[,1:4], mean)
-  d1.agg= d1.agg[-which(d1.agg$metric=="temperature"), 1:3]
-  
-  #add observed
-  fdat<- fecs[fecs$expt==expt,c("metric","treatment", "value" )]
-  fdat<- aggregate(.~metric+treatment, fdat, mean)
-  d1.agg<- rbind(d1.agg, fdat)
-  
-  #code experiment
-  d1.agg$expt<- "mild means"
-  d1.agg$expt[d1.agg$treatment %in% c("28_0", "30_0", "32_0", "28_5", "30_5", "32_5")]<- "high means"
-  d1.agg$expt<- factor(d1.agg$expt, ordered=TRUE, levels=c("mild means","high means") )
-  
-  #code levels
-  treats= matrix(unlist(strsplit(d1.agg$treatment, split = "_")),ncol=2,byrow=T)
-  colnames(treats)=c("mean","variance") #first: 1 is n, 2 is h
-  d1.agg= cbind(d1.agg, treats) 
-  
-  #code x axis
-  d1.agg$treat[d1.agg$expt=="mild means"]<- d1.agg$variance[d1.agg$expt=="mild means"]
-  d1.agg$treat[d1.agg$expt=="high means"]<- d1.agg$mean[d1.agg$expt=="high means"]
-  d1.agg$treat<- as.numeric(d1.agg$treat)
-  
-  #code mean
-  d1.agg$var<- d1.agg$variance
-  d1.agg$var[d1.agg$expt=="mild means"]<- 0
-  
-  #code group
-  d1.agg$group= paste(d1.agg$metric, d1.agg$var, sep="_")
-  
-  plot2.expt3= ggplot(data=d1.agg, aes(x=treat, y =value, color=metric, group=group, lty=var))+geom_point(size=2)+geom_line(lwd=1.5)+
-    facet_grid(.~expt, scale="free", switch="y")+
-    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")
-}
-
-if(expt==5){ 
-  #aggregate
-  d1.agg= aggregate(.~metric+treatment+group, d1, mean)
-  d1.agg= d1.agg[-which(d1.agg$metric=="temperature"), c(1:4)]
-  
-  #add observed
-  fdat<- fecs[fecs$expt==expt,c("metric","treatment", "value")]
-  fdat<- aggregate(.~metric+treatment, fdat, mean)
-  #code groups
-  fdat$group<- "nymphal heatwave"
-  fdat$group[fdat$treatment %in% c("AE1","AE2","AE3","AE4","AE5","AE6")]<- "adult heatwave"
-  
-  d1.agg<- rbind(d1.agg, fdat)
-  
-  plot2.expt5= ggplot(data=d1.agg, aes(x=treatment, y =value, color=metric, group=metric))+geom_point(size=2)+geom_line(lwd=1.5)+
-    facet_grid(.~group, scale="free", switch="y")+
-    theme_bw(base_size=16) +theme(legend.position = "bottom")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))
-}
-
-#write out plot
-if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
-if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
-
-if(expt==1){
-  out_file <- paste("AphidsExpt1_", pms[pm.ind], ".pdf", sep="")
-  
-  pdf(out_file,height = 14, width = 5)
-  print(plot1.expt1 +plot2.expt1 +plot_layout(ncol=1, heights = c(3, 1))+ plot_annotation(tag_levels = 'A') )
-  dev.off()
-  }
-
-if(expt==2){
-  out_file <- paste("AphidsExpt2_", pms[pm.ind], ".pdf", sep="")
-  
-  pdf(out_file,height = 14, width = 14)
-  print(plot1.expt2 +plot2.expt2 +plot_layout(ncol=1, heights = c(3, 1)) + plot_annotation(tag_levels = 'A'))
-  dev.off()
-  }
-
-if(expt==3){
-  out_file <- paste("AphidsExpt3_", pms[pm.ind], ".pdf", sep="")
-  
-  pdf(out_file,height = 14, width = 14)
-  print(plot1.expt3 +plot2.expt3 +plot_layout(ncol=1, heights = c(3, 1)) + plot_annotation(tag_levels = 'A'))
-  dev.off()
-  }
-
-if(expt==4){
-  out_file <- paste("AphidsExpt4_", pms[pm.ind], ".pdf", sep="")
-  
-  pdf(out_file,height = 14, width = 5)
-  print(plot1.expt1 +plot2.expt1 +plot_layout(ncol=1, heights = c(3, 1))+ plot_annotation(tag_levels = 'A') )
-  dev.off()
-}
-
-if(expt==5){
-  out_file <- paste("AphidsExpt5_", pms[pm.ind], ".pdf", sep="")
-  
-  pdf(out_file,height = 14, width = 5)
-  print(plot1.expt5 +plot2.expt5 +plot_layout(ncol=1, heights = c(3, 1))+ plot_annotation(tag_levels = 'A') )
-  dev.off()
-}
-
-#------------------------------------
-#Plot developmental rate comparisons
-
-# plot2.expt1= plot2.expt1 + theme(legend.position = "none")
-# plot2.expt2= plot2.expt2 + theme(legend.position = "none")
-# plot2.expt3= plot2.expt3 + guides(colour = guide_legend(nrow = 3))
-# 
-# pdf("Fig_DevRate.pdf",height = 10, width = 6)
-#   print(plot2.expt1 +plot2.expt2 +plot2.expt3 +plot2.expt4 +plot2.expt5 +plot_layout(ncol=2, heights = c(1, 1, 1.2))+ plot_annotation(tag_levels = 'A') )
-# dev.off()
-
-
-

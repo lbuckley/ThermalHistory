@@ -29,7 +29,9 @@ pms<- c("dr", "sur", "long", "fec")
 pm.ind<- 4
 
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scens= c(1,1,1,3,3,2,2)
+#scens= c(2,3,3,2,3,4,3)
+#scens= c(4,4,1,3,2,4,4)
+scens= c(1,1,1,1,1,1,1)
 
 #------------
 #Constant rate TPCs
@@ -266,7 +268,7 @@ elab= paste("expt",expt,sep=" ")
 d1$treatment <- factor(d1$treatment)
 pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric))+geom_line(lwd=1.5)+xlim(110,160)+
   theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+
-  labs(color="", title=elab)+guides(lty ="none")
+  labs(color="", title=elab)+guides(lty ="none")+ylab("fecundity")
 
 if(expt==1) pplot.e1<- pplot
 if(expt==2) pplot.e2<- pplot
@@ -382,14 +384,40 @@ pms<- c("dr", "sur", "long", "fec")
 pm.ind<- 1
 
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scens= c(2,1,1,1,1,1,1)
+scens= c(1,1,1,1,1,1,1)
 
 #extract performance values
 fecs<- PerfDat[PerfDat$metric=="dev_rate",]
 
+#----------
+for(expt in 1:7){
+  temps.expt<- temps.all[temps.all$expt==expt,]
+  #drop first=2 for experiment 5
+  if(expt==5){
+    #put other first in supplement
+    treats= matrix(unlist(strsplit(temps.expt$treatment, split = "_")),ncol=3,byrow=T)
+    temps.expt= temps.expt[treats[,3]==1,]
+  }
+  
+  cs<- as.numeric(out.dr[which(out.dr$expt==expt & out.dr$scenario==scens[expt]),4:9])
+  
+  p1= perf(pm=pm.ind, temps.expt$temp, c1=cs[1], c2=cs[2], c3=cs[3], c4=cs[4], tp=cs[5], scale=cs[6])
+  p1.nd= perf.nodamage(pm=pm.ind, temps.expt$temp, scale=cs[6])
+  
+  d1<- data.frame(metric="perf.nd",value=p1.nd, time=temps.expt$time, treatment=temps.expt$treatment) 
+  d2<- data.frame(metric="perf",value=p1, time=temps.expt$time, treatment=temps.expt$treatment)
+  d1<- rbind(d1,d2)        
+  
+  #combine across experiments
+  d1$expt<- expt
+  if(expt==1) d1.all<- d1
+  if(expt>1) d1.all<- rbind(d1.all, d1)
+} #end loop experiment
+
 #aggregate performance estimates
 d1.agg= aggregate(.~metric+treatment+expt, d1.all, mean)
 
+#---------
 #add observed
 fdat<- fecs[,c("metric","treatment", "value","expt")]
 fdat<- aggregate(.~metric+treatment+expt, fdat, mean)
@@ -397,7 +425,7 @@ d1.agg<- d1.agg[,c("metric","treatment", "value","expt")]
 d1.agg<- rbind(d1.agg, fdat)
 d1.agg$elab<- paste("expt",d1.agg$expt,sep=" ")
 
-for(expt in 1:7){
+for(expt in c(1:5,7)){
   d1.agg.e<- d1.agg[which(d1.agg$expt==expt),]
   
   #adjust treatments
@@ -458,12 +486,11 @@ for(expt in 1:7){
   if(expt==3) fplot.e3<- fplot
   if(expt==4) fplot.e4<- fplot
   if(expt==5) fplot.e5<- fplot
-  if(expt==6) fplot.e6<- fplot
   if(expt==7) fplot.e7<- fplot
 }
 
 #write out plot
 pdf("Fig6_dev_rate.pdf",height = 10, width = 10)
-print( fplot.e1+fplot.e2+fplot.e3+fplot.e4+fplot.e5+fplot.e6+fplot.e7+lplot+
+print( fplot.e1+fplot.e2+fplot.e3+fplot.e4+fplot.e5+fplot.e7+lplot+
          plot_layout(ncol=2) ) #+ plot_annotation(tag_levels = 'A')
 dev.off()

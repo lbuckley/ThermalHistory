@@ -11,7 +11,7 @@ library(TrenchR)
 library(zoo)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #Analysis for English grain aphid, Sitobion avenae
 
@@ -76,69 +76,22 @@ temps.all$time<- as.numeric(temps.all$time)
 
 #-----
 #Assemble performance
-
-adat2.p.m= adat2.p
 #to long format
-adat2.p.l<- melt(adat2.p.m, id.vars = c("NTmin"), variable.name = "metric")
+adat2.p.l<- melt(adat2.p[,c("NTmin","Fecundtiy")], id.vars = c("NTmin"), variable.name = "metric")
 
 #Survival format unclear
 
 #Development format
-adat2.dt.m1= adat2.dt %>%
-  group_by(NTmin1) %>%
-  summarise(dt= mean(X1st_instar, na.rm = TRUE) )
-
-adat2.dt.m2= adat2.dt %>%
-  group_by(NTmin2) %>%
-  summarise(dt= mean(X2nd_instar, na.rm = TRUE) )
-
-adat2.dt.m3= adat2.dt %>%
-  group_by(NTmin3) %>%
-  summarise(dt= mean(X3rd_instar, na.rm = TRUE) )
-
-adat2.dt.m4= adat2.dt %>%
-  group_by(NTmin4) %>%
-  summarise(dt= mean(X4th_instar, na.rm = TRUE) )
-
-adat2.dt.m5= adat2.dt %>%
-  group_by(NTminN) %>%
-  summarise(dt= mean(Nymph, na.rm = TRUE) )
-
-#add stage
-adat2.dt.m1$stage="i1"
-adat2.dt.m2$stage="i2"
-adat2.dt.m3$stage="i3"
-adat2.dt.m4$stage="i4"
-adat2.dt.m5$stage="nymph"
-
-#align names
-colnames(adat2.dt.m1)[1] <- "NTmin"
-colnames(adat2.dt.m2)[1] <- "NTmin"
-colnames(adat2.dt.m3)[1] <- "NTmin"
-colnames(adat2.dt.m4)[1] <- "NTmin"
-colnames(adat2.dt.m5)[1] <- "NTmin"
-
-#combine
-adat2.dt.m<- rbind(adat2.dt.m1, adat2.dt.m2, adat2.dt.m3, adat2.dt.m4, adat2.dt.m5)
-
-#total development time and development rate
-adat2.dt.m1$tdt<- adat2.dt.m1$dt +adat2.dt.m2$dt[match(adat2.dt.m1$NTmin, adat2.dt.m2$NTmin)] +
-  adat2.dt.m3$dt[match(adat2.dt.m1$NTmin, adat2.dt.m3$NTmin)]+adat2.dt.m4$dt[match(adat2.dt.m1$NTmin, adat2.dt.m4$NTmin)]+
-  adat2.dt.m5$dt[match(adat2.dt.m1$NTmin, adat2.dt.m5$NTmin)]
-adat2.dt.m1$dr<- 1/adat2.dt.m1$tdt
-adat2.dt.m1$metric<- "dr"
-adat2.dt.m1$value<- adat2.dt.m1$dr
-
-#just nymphal development since unclear how other stages line up
-adat2.dt.m1 <- na.omit(cbind( adat2.dt$NTminN, "dr", adat2.dt$Nymph))
+#just nymphal development
+#subset lines since report dt and rv
+adat2.dt.m1 <- na.omit(cbind( adat2.dt$NTminN[1:132], "dev_rate", 1/adat2.dt$Nymph[1:132]))
 colnames(adat2.dt.m1)<- c("NTmin","metric","value")
 
 #--------
 
 #combine dataframes
 obs<- adat2.p.l[,c("NTmin","metric","value")]
-obs.dt<- adat2.dt.m1[,c("NTmin","metric","value")]
-obs<- rbind(obs, obs.dt)
+obs<- rbind(obs, adat2.dt.m1)
 
 colnames(obs)[1]<- c("treatment")
 obs$expt<- 1
@@ -192,7 +145,7 @@ temps.all<- rbind(temps.all, temps.l)
 # assemble performance metrics
 
 #developmental rate
-adat5.p$dr= 1/adat5.p$DurL
+adat5.p$dr= 1/(adat5.p$DurL/24) #check conversion from hourly
 #nymphal data
 
 # #Fecundity, Longevity
@@ -636,5 +589,6 @@ ggplot(data=temps.all[which(temps.all$time<169),], aes(x=time, y =temp, color=tr
 #plot fecundity
 ggplot(data=PerfDat[which(PerfDat$metric=="fecundity"),], aes(x=treatment, y =value))+geom_point()+facet_wrap(.~expt)
 
+ggplot(data=PerfDat[which(PerfDat$metric=="dev_rate"),], aes(x=treatment, y =value))+geom_point()+facet_wrap(.~expt)
 
 

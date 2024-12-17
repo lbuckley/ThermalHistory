@@ -268,7 +268,7 @@ pr.fig.ts<- ggplot(data=pdat[which(pdat$type=="perf repair"),], aes(x=time, y =v
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
   ylab("Performance")+
   scale_colour_brewer(palette = "Dark2") +theme(legend.position = "bottom")+
-  labs(colour="d_mag", lty="d_breadth")
+  labs(colour="r_mag", lty="r_breadth")
 
   
 #---
