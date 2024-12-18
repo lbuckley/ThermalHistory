@@ -101,6 +101,7 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=0,scale,Topt=topt, CTmax=ctmax)
 { 
   p=NA
   damage=0
+  dur=0 
   
   Tdamage= Topt + (CTmax-Topt)*tp
   Tdif= T-Tdamage
@@ -108,8 +109,8 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=0,scale,Topt=topt, CTmax=ctmax)
   
   for(i in 1:length(T)){
     #damage
-    dur<- ifelse(Tdif[i]>0, 1, 0)
-    damage.n<- 1- exp(-c1*dur-c2*Tdif[i])
+    dur<- dur + ifelse(Tdif[i]>0, 1, 0)
+    damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]))
     damage= damage + damage.n
     
     if(damage<0) damage<-0

@@ -111,15 +111,16 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=0,scale,Topt=topt, CTmax=ctmax)
 { 
   p=NA
   damage=0
-  
+  dur=0
+
   Tdamage= Topt + (CTmax-Topt)*tp
   Tdif= T-Tdamage
   if(length(which(Tdif<0))>0) Tdif[which(Tdif<0)]<- 0
   
   for(i in 1:length(T)){
     #damage
-    dur<- ifelse(Tdif[i]>0, 1, 0)
-    damage.n<- 1- exp(-c1*dur-c2*Tdif[i])
+    dur<- dur + ifelse(Tdif[i]>0, 1, 0)
+    damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]) )
     damage= damage + damage.n
     
     if(damage<0) damage<-0
@@ -167,7 +168,7 @@ cs<- expand.grid(c1=seq(0, 1, 0.25), c2= seq(0, .01, 0.003), c3= seq(0, 1, 0.25)
 
 #fit values
 #cs<- expand.grid(c1=c(1.95,2), c2= c(0.0007, 0.001), c3= c(0.25,0.66), c4= c(1.1, 1.3), scale= 0.01)
-cs<- expand.grid(c1=c(0.001,0.01), c2= c(0.001,0.01), c3= c(0.2,0.9), c4= c(1, 3), scale= 0.01)
+cs<- expand.grid(c1=c(0.01,1), c2= c(0.01,1), c3= c(0.2,0.9), c4= c(1, 3), scale= 0.01)
 
 for(k in 1:nrow(cs)){
   p1= perf.damage(pm=pm.ind, temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
@@ -265,7 +266,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     return( sqrt(totalerror) )
   }
 
-  opt<- nmkb(fn=errs, par=c(1,0.001,0.1,1,0.5), lower=c(0,0.000001,0,0,0), upper=c(1.5,2,1,3,1) )
+  opt<- nmkb(fn=errs, par=c(1,0.001,0.1,1,0.5), lower=c(0,0,0,0,0), upper=c(1.5,2,1,3,1) )
 
   #store output and fits
   opts[expt,2,]<- c(opt$par, scale.est)
@@ -284,18 +285,18 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     return( sqrt(totalerror) )
   }
 
-  opt<- nmkb(fn=errs, par=c(0.001,0.1,1), lower=c(0.000001,0,0), upper=c(2,1,1.5) )
+  opt<- nmkb(fn=errs, par=c(0.001,0.1,1), lower=c(0,0,0), upper=c(2,1,1.5) )
 
   #store output and fits
   opts[expt,3,]<- c(0, opt$par, 0, scale.est)
   fit[expt,3,1:2]<- c(opt$value, opt$convergence)
 
-  #4. drop c2 with floor for damage c2=0.000001
+  #4. drop c2 
   errs<- function(x, temps=tempse, fecundity=fecs, scale=scale.est){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0.0005,c3=x[2],c4=x[3],tp=0,scale=scale,Topt=topt, CTmax=ctmax)
+      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0,c3=x[2],c4=x[3],tp=0,scale=scale,Topt=topt, CTmax=ctmax)
       perfs= mean(perfs[96:length(perfs)])
       delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
       totalerror=totalerror + sum(delta^2)
