@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 library(ggpubr)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -29,10 +29,13 @@ pms<- c("dr", "sur", "long", "fec")
 pm.ind<- 4
 
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-#scens= c(2,3,3,2,3,4,3)
-#scens= c(4,4,1,3,2,4,4)
 scens= c(1,1,1,1,1,1,1)
 
+#rename treatment in expt 3
+t3<- c("22_0","22_5","22_9","22_13")
+t3.lab<- c("00","05","09","13")
+temps.all$treatment[temps.all$expt==3]<- t3.lab[match(temps.all$treatment[temps.all$expt==3],t3)]
+PerfDat$treatment[PerfDat$expt==3]<- t3.lab[match(PerfDat$treatment[PerfDat$expt==3],t3)]
 #------------
 #Constant rate TPCs
 #English grain aphid, Sitobion avenae
@@ -94,35 +97,36 @@ ctmax= ts[which(ft[120:length(ft)]==0)[1]+120]
 ctmin= ts[which(ft>0)[1]-1]
 
 #Functions
-#make repair depend on distance from Topt
-#plot(1:40, gaussfunc(1:40, mu = Topt, sigma = 1))
-damage.rep<- function(damage.p, T, c1, c2, c3, c4, tp=0, dt, Topt=topt, CTmax=ctmax)  
-{ Tdamage= Topt + (CTmax-Topt)*tp
-Tdif= T-Tdamage
-Tdif[which(Tdif<0)]<- 0
-damage.p= damage.p + dt*Tdif*(c1*damage.p + c2) 
-damage.p[which(damage.p<0)]<-0
-damage.p[which(damage.p>1)]<-1
-#repair
-damage.p= damage.p*(1-c3*gaussfunc(T, mu = Topt, sigma = c4))
-return(damage.p)
-}
-
-#compute performance
-perf<- function(pm, series,c1,c2,c3,c4,tp=0,scale)  {
+perf.damage<- function(pm, T,c1,c2,c3,c4,tp=0,scale,Topt=topt, CTmax=ctmax)  
+{ 
   p=NA
   damage=0
-  for(i in 1:length(series)){
-    damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
+  
+  Tdamage= Topt + (CTmax-Topt)*tp
+  Tdif= T-Tdamage
+  if(length(which(Tdif<0))>0) Tdif[which(Tdif<0)]<- 0
+  
+  for(i in 1:length(T)){
+    #damage
+    dur<- ifelse(Tdif[i]>0, 1, 0)
+    damage.n<- 1- exp(-c1*dur-c2*Tdif[i])
+    damage= damage + damage.n
     
-    if(pm==1) p= dr(series[i])*(1-damage)
-    if(pm==2) p= sur(series[i])*(1-damage)
-    if(pm==3) p= long(series[i])*(1-damage)
-    if(pm==4) p= fec(series[i])*(1-damage)
+    if(damage<0) damage<-0
+    if(damage>1) damage<-1
+    
+    #repair
+    damage= damage*(1-c3*gaussfunc(T[i], mu = Topt, sigma = c4))
+    
+    #performance
+    if(pm==1) p= dr(T[i])*(1-damage)
+    if(pm==2) p= sur(T[i])*(1-damage)
+    if(pm==3) p= long(T[i])*(1-damage)
+    if(pm==4) p= fec(T[i])*(1-damage)
     
     if(i==1) perf.all=p*scale
     if(i>1) perf.all=c(perf.all, p*scale)
-  }
+  } #end loop temperature series
   return(perf.all)
 }
 
@@ -155,10 +159,10 @@ perf.nodamage<- function(pm, series,scale)  {
 for(expt in 1:4){
  elab<- paste("expt",expt,sep=" ")
  temps.all$treatment[temps.all$expt==3]<- gsub("22_","", temps.all$treatment[temps.all$expt==3])
-   
+ 
 tplot= ggplot(data=temps.all[temps.all$expt %in% expt,], aes(x=time, y =temp, color=factor(treatment)))+geom_line(lwd=1.5)+ xlim(0,40)+
     theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+labs(color="treatment")+
-  labs(title=elab, color="")+xlab("time (hour)")+ylab("temperature")
+  labs(title=elab, color="treatment (°C)")+xlab("time (hour)")+ylab("temperature")
 
 if(expt==1) tplot.e1<- tplot
 if(expt==2) tplot.e2<- tplot
@@ -192,15 +196,15 @@ temps.l$elab<- paste("expt",temps.l$expt,sep=" ")
 
 #plot
 tplot.e5<- ggplot(temps.l, aes(x = day, y = treat.nh, fill=factor(value))) +
-  geom_tile()+labs(title="expt 5", fill="")+
+  geom_tile()+labs(title="expt 5", fill="day type")+
   theme_bw(base_size=16)+theme(legend.position = "right")+ylab("treatment")
 
 #-------------
 #Expt 6: vary length of heatwave and timing (expt 5 adult)
 #Expt 7: vary length of heatwave and timing (expt 5 nymph)
-t6<- as.data.frame(matrix("normal", 15, 12))
+t6<- as.data.frame(matrix("normal", 20, 12))
 colnames(t6)<- c("AE1","AE2","AE3","AE4","AE5","AE6","NL1","NL2","NL3","NL4","NL5","NL6")
-t6$day<- 1:15
+t6$day<- 1:20
 #AE
 t6[8:9,"AE1"]<- "hot"
 t6[8:10,"AE2"]<- "hot"
@@ -219,12 +223,12 @@ t6[6:7,"NL1"]<- "hot"
 #to long format
 t6.l<- melt(t6, id.vars = c("day"), variable.name = "treatment")
 #order treatments
-t6.l$treatment= factor(t6.l$treatment, ordered=T, 
+t6.l$treatment= factor(t6.l$treatment, ordered=TRUE, 
   levels=c("NL6","NL5","NL4","NL3","NL2","NL1","AE1","AE2","AE3","AE4","AE5","AE6"))
 
 tplot.e6<- ggplot(t6.l, aes(x = day, y = treatment, fill=factor(value))) +
-  geom_tile()+labs(title="expts 6 & 7", fill="")+
-  theme_bw(base_size=16)+theme(legend.position = "right")
+  geom_tile()+labs(title="expts 6 & 7", fill="day type")+
+  theme_bw(base_size=16)+theme(legend.position = "right")+xlim(0.5,16.5)
 
 #write out plot
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
@@ -248,7 +252,7 @@ if(expt==5){
 
 cs<- as.numeric(out[which(out$expt==expt & out$scenario==scens[expt]),4:9])
 
-p1= perf(pm=pm.ind, temps.expt$temp, c1=cs[1], c2=cs[2], c3=cs[3], c4=cs[4], tp=cs[5], scale=cs[6])
+p1= perf.damage(pm=pm.ind, temps.expt$temp, c1=cs[1], c2=cs[2], c3=cs[3], c4=cs[4], tp=cs[5], scale=cs[6])
 p1.nd= perf.nodamage(pm=pm.ind, temps.expt$temp, scale=cs[6])
 
 d1<- data.frame(metric="perf.nd",value=p1.nd, time=temps.expt$time, treatment=temps.expt$treatment) 
@@ -265,10 +269,25 @@ d1$metric <- revalue(d1$metric, c("perf.nd" = "performance no damage", "perf" = 
 d1$metric <- factor(d1$metric, ordered=TRUE, levels=c("performance no damage", "performance with damage"))
 elab= paste("expt",expt,sep=" ")
 
+#plot days 7 to 11
 d1$treatment <- factor(d1$treatment)
-pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric))+geom_line(lwd=1.5)+xlim(110,160)+
+pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric))+geom_line(lwd=1.5)+xlim(216,312)+
   theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+
-  labs(color="", title=elab)+guides(lty ="none")+ylab("fecundity")
+  labs(color="treatment", title=elab)+guides(lty ="none")+ylab("fecundity")+xlab("time (hour)")
+
+#for adult heatwaves, plot later period
+#account for 20 minute data
+if(expt==6){
+  pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric))+geom_line(lwd=1.5)+xlim(216,312)+
+    theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+
+    labs(color="treatment", title=elab)+guides(lty ="none")+ylab("fecundity")+xlab("time (hour)")
+}
+
+if(expt==7){
+  pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric))+geom_line(lwd=1.5)+xlim(24,120)+
+    theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+
+    labs(color="treatment", title=elab)+guides(lty ="none")+ylab("fecundity")+xlab("time (hour)")
+}
 
 if(expt==1) pplot.e1<- pplot
 if(expt==2) pplot.e2<- pplot
@@ -304,6 +323,11 @@ d1.agg<- d1.agg[,c("metric","treatment", "value","expt")]
 d1.agg<- rbind(d1.agg, fdat)
 d1.agg$elab<- paste("expt",d1.agg$expt,sep=" ")
 
+#rename metrics
+metrs<- c("fecundity","perf","perf.nd")
+metr.lab<- c("observed","performance","performance without damage")
+d1.agg$metric= metr.lab[match(d1.agg$metric, metrs)]
+
 for(expt in 1:7){
   d1.agg.e<- d1.agg[which(d1.agg$expt==expt),]
   
@@ -317,7 +341,7 @@ if(expt==5){
   #code levels
   treats= matrix(unlist(strsplit(d1.agg.e$treatment, split = "_")),ncol=3,byrow=T)
   colnames(treats)=c("hotdays","normaldays","first") #first: 1 is n, 2 is h
-  d1.agg.e= cbind(d1.agg.e, treats)  
+  d1.agg.e= cbind(d1.agg.e, treats)
   #d1.agg.e$hotdays <- revalue(d1.agg.e$hotdays, c("1" = "hotdays: 1", "2" = "hotdays: 2", "3" = "hotdays:3"))
   
   #put other first in supplement
@@ -338,7 +362,7 @@ if(expt==5){
   }
 
 #plot
-xlabs<-c("Tmin","Tmax","Tvar","Tmean","# normal days","heatwave length", "heatwave length")  
+xlabs<-c("Tmin (°C)","Tmax (°C)","Tvar (°C)","Tmean (°C)","# normal days","heatwave length", "heatwave length")  
   
 fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, group=metric))+
   geom_point(size=2)+geom_line(lwd=1.5)+
@@ -349,16 +373,18 @@ if(expt==4){
   d1.agg.e$tmet<- paste(d1.agg.e$metric, d1.agg.e$tvar, sep="_")
   fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, lty=factor(tvar), group=tmet))+
     geom_point(size=2)+geom_line(lwd=1.5)+
-    theme_bw(base_size=16) +theme(legend.position = c(0.9,0.75))+scale_color_brewer(palette="Dark2")+guides(colour ="none")+
-    labs(title=d1.agg.e$elab)+ylab("fecundity")+xlab(xlabs[expt])
+    theme_bw(base_size=16) +theme(legend.position = c(0.9,0.75),legend.background=element_blank())+
+    scale_color_brewer(palette="Dark2")+guides(colour ="none")+
+    labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("fecundity")+xlab(xlabs[expt])
 }
 
 if(expt==5){
   d1.agg.e$tmet<- paste(d1.agg.e$metric, d1.agg.e$hotdays, sep="_")
   fplot= ggplot(data=d1.agg.e, aes(x=normaldays, y =value, color=metric, group=tmet, lty=hotdays))+
     geom_point(size=2)+geom_line(lwd=1.5)+
-    theme_bw(base_size=16) +theme(legend.position = c(0.2,0.75))+scale_color_brewer(palette="Dark2")+guides(colour = "none")+
-    labs(title=d1.agg.e$elab)+ylab("fecundity")+xlab(xlabs[expt])
+    theme_bw(base_size=16) +theme(legend.position = c(0.1,0.75),legend.background=element_blank())+
+    scale_color_brewer(palette="Dark2")+guides(colour = "none")+
+    labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("fecundity")+xlab(xlabs[expt])
 }
 
 if(expt==1) fplot.e1<- fplot
@@ -425,6 +451,11 @@ d1.agg<- d1.agg[,c("metric","treatment", "value","expt")]
 d1.agg<- rbind(d1.agg, fdat)
 d1.agg$elab<- paste("expt",d1.agg$expt,sep=" ")
 
+#rename metrics
+metrs<- c("dev_rate","perf","perf.nd")
+metr.lab<- c("observed","performance","performance without damage")
+d1.agg$metric= metr.lab[match(d1.agg$metric, metrs)]
+
 for(expt in c(1:5,7)){
   d1.agg.e<- d1.agg[which(d1.agg$expt==expt),]
   
@@ -469,16 +500,16 @@ for(expt in c(1:5,7)){
     d1.agg.e$tmet<- paste(d1.agg.e$metric, d1.agg.e$tvar, sep="_")
     fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, lty=factor(tvar), group=tmet))+
       geom_point(size=2)+geom_line(lwd=1.5)+
-      theme_bw(base_size=16) +theme(legend.position = c(0.9,0.75))+scale_color_brewer(palette="Dark2")+guides(colour ="none")+
-      labs(title=d1.agg.e$elab)+ylab("development time")+xlab(xlabs[expt])
+      theme_bw(base_size=16) +theme(legend.position = c(0.9,0.75),legend.background=element_blank())+scale_color_brewer(palette="Dark2")+guides(colour ="none")+
+      labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("development time")+xlab(xlabs[expt])
   }
   
   if(expt==5){
     d1.agg.e$tmet<- paste(d1.agg.e$metric, d1.agg.e$hotdays, sep="_")
     fplot= ggplot(data=d1.agg.e, aes(x=normaldays, y =value, color=metric, group=tmet, lty=hotdays))+
       geom_point(size=2)+geom_line(lwd=1.5)+
-      theme_bw(base_size=16) +theme(legend.position = c(0.2,0.75))+scale_color_brewer(palette="Dark2")+guides(colour = "none")+
-      labs(title=d1.agg.e$elab)+ylab("development time")+xlab(xlabs[expt])
+      theme_bw(base_size=16) +theme(legend.position = c(0.1,0.75),legend.background=element_blank())+scale_color_brewer(palette="Dark2")+guides(colour = "none")+
+      labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("development time")+xlab(xlabs[expt])
   }
   
   if(expt==1) fplot.e1<- fplot

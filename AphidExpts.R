@@ -11,7 +11,7 @@ library(TrenchR)
 library(zoo)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #Analysis for English grain aphid, Sitobion avenae
 
@@ -37,7 +37,7 @@ adat2.dt<- read.csv("Zhaoetal2014/Zhaoetal2014_devtime.csv")
 adat2.p<- read.csv("Zhaoetal2014/Zhaoetal2014_AdPerf.csv")
 adat2.lt<- read.csv("Zhaoetal2014/Zhaoetal2014_LifeTable.csv")
 adat2.sur<- read.csv("Zhaoetal2014/Zhaoetal2014_SurvNymph.csv")
-#could add survival bu format unclear
+#could add survival but format unclear
 #----
 #construct temperatures
 #currently sawtooth, make sine wave?
@@ -410,14 +410,19 @@ adat6.p<- read.csv("Zhaoetal2019/Zhaoetal2019_perf.csv")
 adat6.t$Temp...C<- as.numeric(adat6.t$Temp...C)
 
 min<- as.numeric(format(strptime(adat6.t$Time..GMT.08.00, format="%y/%m/%d %H:%M"),'%M'))
-#restrict to 20 minute interval
-adat6.t<- adat6.t[min %in% c(0,20,40),]
-min<- min[min %in% c(0,20,40)]
+# #restrict to 20 minute interval
+# adat6.t<- adat6.t[min %in% c(0,20,40),]
+# min<- min[min %in% c(0,20,40)]
+#restrict to hourly data
+adat6.t<- adat6.t[min %in% c(0),]
+min<- min[min %in% c(0)]
 
 hrs<- as.numeric(format(strptime(adat6.t$Time..GMT.08.00, format="%y/%m/%d %H:%M"),'%H'))
 adat6.t$doy<- as.numeric(format(strptime(adat6.t$Time..GMT.08.00, format="%y/%m/%d %H:%M"),'%j'))
-#restrict to 20 minute interval
-adat6.t<- adat6.t[min %in% c(0,20,40),]
+# #restrict to 20 minute interval
+# adat6.t<- adat6.t[min %in% c(0,20,40),]
+#restrict to hourly data
+adat6.t<- adat6.t[min %in% c(0),]
 
 time<- hrs+min/60
 

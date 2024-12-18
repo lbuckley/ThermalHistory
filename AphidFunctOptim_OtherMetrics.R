@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 library(dfoptim)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
@@ -106,39 +106,41 @@ ctmin= ts[which(ft>0)[1]-1]
 # plot(ts, long(ts))
 # plot(ts, fec(ts))
 
-#make repair depend on distance from Topt
-#plot(1:40, gaussfunc(1:40, mu = Topt, sigma = 1))
-damage.rep<- function(damage.p, T, c1, c2, c3, c4, tp=0, dt, Topt=topt, CTmax=ctmax)  
-{ Tdamage= Topt + (CTmax-Topt)*tp
-Tdif= T-Tdamage
-if(length(which(Tdif<0))>0) Tdif[which(Tdif<0)]<- 0
-damage.p= damage.p + dt*Tdif*(c1*damage.p + c2) 
-if(length(which(damage.p<0))>0) damage.p[which(damage.p<0)]<-0
-if(length(which(damage.p>1))>0) damage.p[which(damage.p>1)]<-1
-#repair
-damage.p= damage.p*(1-c3*gaussfunc(T, mu = Topt, sigma = c4))
-return(damage.p)
-}
-
-#compute performance
-perf<- function(pm, series,c1,c2,c3,c4,tp=0,scale)  {
+#--------------------
+perf.damage<- function(pm, T,c1,c2,c3,c4,tp=0,scale,Topt=topt, CTmax=ctmax)  
+{ 
   p=NA
   damage=0
-  for(i in 1:length(series)){
-    damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
+  
+  Tdamage= Topt + (CTmax-Topt)*tp
+  Tdif= T-Tdamage
+  if(length(which(Tdif<0))>0) Tdif[which(Tdif<0)]<- 0
+  
+  for(i in 1:length(T)){
+    #damage
+    dur<- ifelse(Tdif[i]>0, 1, 0)
+    damage.n<- 1- exp(-c1*dur-c2*Tdif[i])
+    damage= damage + damage.n
     
-    if(pm==1) p= dr(series[i])*(1-damage)
-    if(pm==2) p= sur(series[i])*(1-damage)
-    if(pm==3) p= long(series[i])*(1-damage)
-    if(pm==4) p= fec(series[i])*(1-damage)
+    if(damage<0) damage<-0
+    if(damage>1) damage<-1
+    
+    #repair
+    damage= damage*(1-c3*gaussfunc(T[i], mu = Topt, sigma = c4))
+    
+    #performance
+    if(pm==1) p= dr(T[i])*(1-damage)
+    if(pm==2) p= sur(T[i])*(1-damage)
+    if(pm==3) p= long(T[i])*(1-damage)
+    if(pm==4) p= fec(T[i])*(1-damage)
     
     if(i==1) perf.all=p*scale
     if(i>1) perf.all=c(perf.all, p*scale)
-  }
-  return(perf.all)
+  } #end loop temperature series
+return(perf.all)
 }
 
-#perf(pm=pm.ind, series=temps[,"temp"], c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
+#perf.damage(pm=pm.ind, T=temps.all[which(temps.all$expt==1 & temps.all$treatment==13),"temp"], c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5],Topt=topt, CTmax=ctmax)
 
 perf.nodamage<- function(pm, series,scale)  {
   perf=NA
@@ -154,36 +156,21 @@ perf.nodamage<- function(pm, series,scale)  {
   return(perf.all)
 }
 
-computeperf<- function(pm, series,c1,c2,c3,c4,tp=0,scale,printdam=FALSE)  {
-  p=0
-  damage=0
-  for(i in 1:length(series)){
-    if(pm==1) perf= dr(series[i])
-    if(pm==2) perf= sur(series[i])
-    if(pm==3) perf= long(series[i])
-    if(pm==4) perf= fec(series[i])
-    
-    damage=damage.rep(damage,T=series[i],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp,dt=1)
-  if(i>= 96) p= p + perf*(1-damage) #only store performance estimates starting at day 4
-  }
-return(p*scale/length(series))
-}
-
 #-----------
 #plot parameter values
 ts= seq(1, 35, 0.5)
 temps= c(ts, rev(ts),ts, rev(ts))
 
 #make parameter combinations 
-cs<- expand.grid(c1=seq(0, 2, 0.5), c2= seq(0, .01, 0.003), c3= seq(0, 1, 0.25), c4= seq(1, 5, 1),
+cs<- expand.grid(c1=seq(0, 1, 0.25), c2= seq(0, .01, 0.003), c3= seq(0, 1, 0.25), c4= seq(1, 5, 1),
                  scale= 1 )
 
 #fit values
 #cs<- expand.grid(c1=c(1.95,2), c2= c(0.0007, 0.001), c3= c(0.25,0.66), c4= c(1.1, 1.3), scale= 0.01)
-cs<- expand.grid(c1=c(1,2), c2= c(0.00001, 0.001), c3= c(0.2,0.9), c4= c(1, 3), scale= 0.01)
+cs<- expand.grid(c1=c(0.001,0.01), c2= c(0.001,0.01), c3= c(0.2,0.9), c4= c(1, 3), scale= 0.01)
 
 for(k in 1:nrow(cs)){
-  p1= perf(pm=pm.ind, temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
+  p1= perf.damage(pm=pm.ind, temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
   ps= cbind(time=1:length(temps), temps, p1, k, cs[k,])
   if(k==1) ps.all<- ps
   if(k>1) ps.all<- rbind(ps.all, ps)
@@ -251,98 +238,87 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      delta=fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale)
+      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=0,scale=scale,Topt=topt, CTmax=ctmax)
+      perfs= mean(perfs[96:length(perfs)])
+      delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
       totalerror=totalerror + sum(delta^2)
-      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/; https://stats.stackexchange.com/questions/87345/calculating-aic-by-hand-in-r
-      #totalerror= totalerror + nrow(fecundity[which(fecundity$treatment==treats[i]),])*(log(2*pi)+1+log((sum(delta^2)/nrow(fecundity[which(fecundity$treatment==treats[i]),]) )))+((length(x)+1)*2)
       }
     return( sqrt(totalerror) )
-    #return(totalerror)
   }
   
-  opt<- nmkb(fn=errs, par=c(1,0.001,0.1,1), lower=c(0,0.000001,0,0), upper=c(2,1,1,5))
+  opt<- nmkb(fn=errs, par=c(0.001,0.001,0.1,1), lower=c(0,0,0,0), upper=c(1,1,1,3)) #c(1.5,1,1,3)
   
   #store output and fits
   opts[expt,1,]<- c(opt$par[1:4], 0, scale.est)
   fit[expt,1,1:2]<- c(opt$value, opt$convergence)
   
   #2. fit tp
-  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){  
+  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=x[5],scale=scale))
+      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=x[5],scale=scale,Topt=topt, CTmax=ctmax)
+      perfs= mean(perfs[96:length(perfs)])
+      delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
       totalerror=totalerror + sum(delta^2)
-      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/; https://stats.stackexchange.com/questions/87345/calculating-aic-by-hand-in-r
-      #totalerror= totalerror + nrow(fecundity[which(fecundity$treatment==treats[i]),])*(log(2*pi)+1+log((sum(delta^2)/nrow(fecundity[which(fecundity$treatment==treats[i]),]) )))+((length(x)+1)*2)
     }
     return( sqrt(totalerror) )
-    #return(totalerror)
   }
-  
-  opt<- nmkb(fn=errs, par=c(1,0.001,0.1,1,0.5), lower=c(0,0.000001,0,0,0), upper=c(2,2,1,5,1) )
-  
+
+  opt<- nmkb(fn=errs, par=c(1,0.001,0.1,1,0.5), lower=c(0,0.000001,0,0,0), upper=c(1.5,2,1,3,1) )
+
   #store output and fits
   opts[expt,2,]<- c(opt$par, scale.est)
   fit[expt,2,1:2]<- c(opt$value, opt$convergence)
-  
+
   #3. drop c1
-  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){  
+  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],c4=x[3],scale=scale))
+      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],c4=x[3],tp=0,scale=scale,Topt=topt, CTmax=ctmax)
+      perfs= mean(perfs[96:length(perfs)])
+      delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
       totalerror=totalerror + sum(delta^2)
-      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/; https://stats.stackexchange.com/questions/87345/calculating-aic-by-hand-in-r
-      #totalerror= totalerror + nrow(fecundity[which(fecundity$treatment==treats[i]),])*(log(2*pi)+1+log((sum(delta^2)/nrow(fecundity[which(fecundity$treatment==treats[i]),]) )))+((length(x)+1)*2)
     }
     return( sqrt(totalerror) )
-    #return(totalerror)
   }
-  
-  opt<- nmkb(fn=errs, par=c(0.001,0.1,1), lower=c(0.000001,0,0), upper=c(2,1,5) )
-  
+
+  opt<- nmkb(fn=errs, par=c(0.001,0.1,1), lower=c(0.000001,0,0), upper=c(2,1,1.5) )
+
   #store output and fits
   opts[expt,3,]<- c(0, opt$par, 0, scale.est)
   fit[expt,3,1:2]<- c(opt$value, opt$convergence)
-  
+
   #4. drop c2 with floor for damage c2=0.000001
-  errs<- function(x, temps=tempse, fecundity=fecs, scale=scale.est){  
+  errs<- function(x, temps=tempse, fecundity=fecs, scale=scale.est){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0.0005,c3=x[2],c4=x[3],scale=scale))
+      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0.0005,c3=x[2],c4=x[3],tp=0,scale=scale,Topt=topt, CTmax=ctmax)
+      perfs= mean(perfs[96:length(perfs)])
+      delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
       totalerror=totalerror + sum(delta^2)
-      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/; https://stats.stackexchange.com/questions/87345/calculating-aic-by-hand-in-r
-      #totalerror= totalerror + nrow(fecundity[which(fecundity$treatment==treats[i]),])*(log(2*pi)+1+log((sum(delta^2)/nrow(fecundity[which(fecundity$treatment==treats[i]),]) )))+((length(x)+1)*2)
     }
     return( sqrt(totalerror) )
-    #return(totalerror)
   }
-  
-  opt<- nmkb(fn=errs, par=c(1,0.1,1), lower=c(0,0,0), upper=c(2,1,5) )
-  
+
+  opt<- nmkb(fn=errs, par=c(1,0.1,1), lower=c(0,0,0), upper=c(3,1,1.5) )
+
   #store output and fits
   opts[expt,4,]<- c(opt$par[1], 0.000001, opt$par[2:3], 0, scale.est)
   fit[expt,4,1:2]<- c(opt$value, opt$convergence)
-  
+
   #---------
-  #estimate AICs
+  #estimate AICs, https://stackoverflow.com/questions/39999456/aic-on-nls-on-r
   
-  temps=tempse
-  fecundity=fecs
-  treats=unique(temps$treatment)
+  scen.params<- c(4,5,3,3)
   
   for(scen in 1:4){
-    totalerror=0
-    for(i in 1:length(treats)){
-      delta=sum(fecundity[which(fecundity$treatment==treats[i]),"value"]- computeperf(pm.ind,series=temps[temps$treatment==treats[i],"temp"],c1=opts[expt,scen,1],c2=opts[expt,scen,2],c3=opts[expt,scen,3],c4=opts[expt,scen,4],tp=opts[expt,scen,5],scale=opts[expt,scen,6]))
-      #try AIC function: https://optimumsportsperformance.com/blog/optimization-algorithms-in-r-returning-model-fit-metrics/; https://stats.stackexchange.com/questions/87345/calculating-aic-by-hand-in-r
-      totalerror= totalerror + nrow(fecundity[which(fecundity$treatment==treats[i]),])*(log(2*pi)+1+log((sum(delta^2)/nrow(fecundity[which(fecundity$treatment==treats[i]),]) )))+((length(x)+1)*2)
+    logL <- 0.5 *(- nrow(fecs) * (log(2*pi)+1-log(nrow(fecs)) + log(fit[expt,scen,1])))
+    fit[expt, scen,3]= 2*(scen.params[scen] + 1) - 2 * logL 
     }
-    fit[expt, scen,3]= totalerror
-  }
-  
+   
 } #end check data exists
 } #end loop experiments
   
@@ -377,4 +353,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   #optimization options
   #efficient package: https://cran.r-project.org/web/packages/lbfgs/vignettes/Vignette.pdf
   #https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/
+  
+  scen1= cbind(opts[,1,], fit[,1,1])
+  scen1[,c(3:4,6:7)]= round(scen1[,c(3:4,6:7)],2) 
   
