@@ -13,12 +13,12 @@ library(rvmethod) #gaussian function
 library(dfoptim)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
 #pick metric
-pm.ind<- 1
+pm.ind<- 4
 #set default tp
 tp1=1
 
@@ -122,7 +122,8 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp1,scale,Topt=topt, CTmax=ctmax)
   for(i in 1:length(T)){
     #damage
     dur<- dur + ifelse(Tdif[i]>0, 1, 0)
-    damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]) )
+    #damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]))
+    damage.n<- c1*dur+c2*Tdif[i]
     damage= damage + damage.n
     
     if(damage<0) damage<-0
@@ -199,7 +200,7 @@ if(pm.ind==4) fecs.all<- PerfDat[PerfDat$metric=="fecundity",]
 
 #store output
 opts= array(NA, dim=c(7,5,6), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4", "s5"), c("c1","c2","c3","c4","tp","scale")))
-fit= array(NA, dim=c(7,5,3), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4", "s5"), c("sse","convergence","aic")))
+fit= array(NA, dim=c(7,5,4), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4", "s5"), c("sse","convergence","aic", "bic")))
 
 #loop through 7 experiments 
 for(expt in c(1:7)){ 
@@ -343,6 +344,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   for(scen in 1:5){
     logL <- 0.5 *(- nrow(fecs) * (log(2*pi)+1-log(nrow(fecs)) + log(fit[expt,scen,1])))
     fit[expt, scen,3]= 2*(scen.params[scen] + 1) - 2 * logL 
+    fit[expt, scen,4]= log(nrow(fecs))*(scen.params[scen] + 1) - 2 * logL #BIC
     }
    
 } #end check data exists
@@ -350,42 +352,44 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   
   #-----------------
   #Construct tables
-  expt1<- cbind(expt="1", scenario=1:5, opts[1,,], fit[1,,c(1,3)])
-  expt2<- cbind(expt="2", scenario=1:5, opts[2,,], fit[2,,c(1,3)])
-  expt3<- cbind(expt="3", scenario=1:5, opts[3,,], fit[3,,c(1,3)])
-  expt4<- cbind(expt="4", scenario=1:5, opts[4,,], fit[4,,c(1,3)])
-  expt5<- cbind(expt="5", scenario=1:5, opts[5,,], fit[5,,c(1,3)])
-  expt6<- cbind(expt="6", scenario=1:5, opts[6,,], fit[6,,c(1,3)])
-  expt7<- cbind(expt="7", scenario=1:5, opts[7,,], fit[7,,c(1,3)])
+  expt1<- cbind(expt="1", scenario=1:5, opts[1,,], fit[1,,c(1,3:4)])
+  expt2<- cbind(expt="2", scenario=1:5, opts[2,,], fit[2,,c(1,3:4)])
+  expt3<- cbind(expt="3", scenario=1:5, opts[3,,], fit[3,,c(1,3:4)])
+  expt4<- cbind(expt="4", scenario=1:5, opts[4,,], fit[4,,c(1,3:4)])
+  expt5<- cbind(expt="5", scenario=1:5, opts[5,,], fit[5,,c(1,3:4)])
+  expt6<- cbind(expt="6", scenario=1:5, opts[6,,], fit[6,,c(1,3:4)])
+  expt7<- cbind(expt="7", scenario=1:5, opts[7,,], fit[7,,c(1,3:4)])
   
   #best scenario
   #scens= c(1,3,3,3,3,2,2)
-  if(pm.ind==4) scens= c(1,5,5,3,5,5,5) #fec
-  if(pm.ind==1) scens= c(3,4,5,2,1,NA,5) #dev_rate
+  if(pm.ind==4) scens= c(1,1,1,4,1,1,1) #fec
+  if(pm.ind==1) scens= c(1,1,1,4,1,NA,1) #dev_rate
   
   for(i in 1:7){
-  scen1= c(expt=i, scenario=scens[i], opts[i,scens[i],], sse=fit[i,scens[i],1], aic=fit[i,scens[i],3]) 
+  scen1= c(expt=i, scenario=scens[i], opts[i,scens[i],], sse=fit[i,scens[i],1], aic=fit[i,scens[i],3], bic=fit[i,scens[i],4]) 
   if(i==1) scen.top= scen1
   if(i>1) scen.top= rbind(scen.top, scen1)
   }
   
   #other scenarios
   out<- rbind(expt1, expt2, expt3, expt4, expt5, expt6, expt7)
-  colnames(out)[3:ncol(out)]<- c("d_time","d_temp","r_mag","r_breadth","tp","scale","sse","AIC")
+  colnames(out)[3:ncol(out)]<- c("d_time","d_temp","r_mag","r_breadth","tp","scale","sse","AIC","BIC")
   out<- as.data.frame(out)
   
   #estimate delta AIC
   out$deltaAIC= as.numeric(out$AIC) - as.numeric(scen.top[match(out$expt, scen.top[,"expt"]),"aic"]) 
+  out$deltaSSE= as.numeric(out$sse) - as.numeric(scen.top[match(out$expt, scen.top[,"expt"]),"sse"]) 
   
   #round
   scen.top[,c(3:4)]= round(scen.top[,c(3:4)],8) 
   scen.top[,c(5:8)]= round(scen.top[,c(5:8)],2) 
   scen.top[,c(9:10)]<- round(as.numeric(scen.top[,c(9:10)]),0)
-  colnames(scen.top)[3:ncol(scen.top)]<- c("d_time","d_temp","r_mag","r_breadth","tp","scale","sse","AIC")
+  colnames(scen.top)[3:ncol(scen.top)]<- c("d_time","d_temp","r_mag","r_breadth","tp","scale","sse","AIC","BIC")
   
   out[,c(3:4)]<- round(as.numeric(unlist(out[,c(3:4)])), 8)
   out[,c(5:9)]<- round(as.numeric(unlist(out[,c(5:9)])), 2)
-  out[,c(10:11)]<- round(as.numeric(unlist(out[,c(10:11)])), 0)
+  out[,c(10:12)]<- round(as.numeric(unlist(out[,c(10:12)])), 0)
+  out[,c(13)]<- round(as.numeric(unlist(out[,c(13)])), 2)
   
   #save output
   if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")

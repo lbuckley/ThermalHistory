@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 library(ggpubr)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -26,10 +26,11 @@ out.dr<- read.csv("out_dr.csv")
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
-pm.ind<- 1
+pm.ind<- 4
 
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scens= c(1,5,5,3,5,5,5)   #tp=1: scens= c(1,3,3,3,3,2,2) scens= c(1,1,1,1,1,1,1)
+#scens= c(1,5,5,3,5,5,5)   #tp=1: scens= c(1,3,3,3,3,2,2) 
+scens= c(1,1,1,4,1,1,1)
 
 #set up default tp
 tp1=1
@@ -113,7 +114,8 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp1,scale,Topt=topt, CTmax=ctmax)
   for(i in 1:length(T)){
     #damage
     dur<- dur + ifelse(Tdif[i]>0, 1, 0)
-    damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]))
+    #damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]))
+    damage.n<- c1*dur+c2*Tdif[i]
     damage= damage + damage.n
     
     if(damage<0) damage<-0
