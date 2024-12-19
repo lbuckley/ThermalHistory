@@ -13,12 +13,14 @@ library(rvmethod) #gaussian function
 library(dfoptim)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
 #pick metric
-pm.ind<- 4
+pm.ind<- 1
+#set default tp
+tp1=1
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -107,7 +109,7 @@ ctmin= ts[which(ft>0)[1]-1]
 # plot(ts, fec(ts))
 
 #--------------------
-perf.damage<- function(pm, T,c1,c2,c3,c4,tp=0,scale,Topt=topt, CTmax=ctmax)  
+perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp1,scale,Topt=topt, CTmax=ctmax)  
 { 
   p=NA
   damage=0
@@ -196,9 +198,8 @@ if(pm.ind==4) fecs.all<- PerfDat[PerfDat$metric=="fecundity",]
 #4. drop c2 with floor for damage c2=0.000001
 
 #store output
-opts.scale= array(NA, dim=c(7,4,6), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4"), c("c1","c2","c3","c4","tp","scale")))
-opts= array(NA, dim=c(7,4,6), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4"), c("c1","c2","c3","c4","tp","scale")))
-fit= array(NA, dim=c(7,4,3), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4"), c("sse","convergence","aic")))
+opts= array(NA, dim=c(7,5,6), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4", "s5"), c("c1","c2","c3","c4","tp","scale")))
+fit= array(NA, dim=c(7,5,3), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4", "s5"), c("sse","convergence","aic")))
 
 #loop through 7 experiments 
 for(expt in c(1:7)){ 
@@ -233,15 +234,16 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
  
   #-----------
 #optimize
-  #1. fit scale four parameters
+  #1. fit four parameters
   #error function
   errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){  
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=0,scale=scale,Topt=topt, CTmax=ctmax)
+      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale,Topt=topt, CTmax=ctmax)
       perfs= mean(perfs[96:length(perfs)])
       delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
+      delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
       totalerror=totalerror + sum(delta^2)
       }
     return( sqrt(totalerror) )
@@ -250,7 +252,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   opt<- nmkb(fn=errs, par=c(0.001,0.001,0.1,1), lower=c(0,0,0,0), upper=c(1,1,1,3)) #c(1.5,1,1,3)
   
   #store output and fits
-  opts[expt,1,]<- c(opt$par[1:4], 0, scale.est)
+  opts[expt,1,]<- c(opt$par[1:4], tp1, scale.est)
   fit[expt,1,1:2]<- c(opt$value, opt$convergence)
   
   #2. fit tp
@@ -261,6 +263,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
       perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=x[5],scale=scale,Topt=topt, CTmax=ctmax)
       perfs= mean(perfs[96:length(perfs)])
       delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
+      delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
       totalerror=totalerror + sum(delta^2)
     }
     return( sqrt(totalerror) )
@@ -277,9 +280,10 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],c4=x[3],tp=0,scale=scale,Topt=topt, CTmax=ctmax)
+      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],c4=x[3],scale=scale,Topt=topt, CTmax=ctmax)
       perfs= mean(perfs[96:length(perfs)])
       delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
+      delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
       totalerror=totalerror + sum(delta^2)
     }
     return( sqrt(totalerror) )
@@ -288,7 +292,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   opt<- nmkb(fn=errs, par=c(0.001,0.1,1), lower=c(0,0,0), upper=c(2,1,1.5) )
 
   #store output and fits
-  opts[expt,3,]<- c(0, opt$par, 0, scale.est)
+  opts[expt,3,]<- c(0, opt$par, tp1, scale.est)
   fit[expt,3,1:2]<- c(opt$value, opt$convergence)
 
   #4. drop c2 
@@ -296,9 +300,10 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
     totalerror=0
     treats=unique(temps$treatment)
     for(i in 1:length(treats)){
-      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0,c3=x[2],c4=x[3],tp=0,scale=scale,Topt=topt, CTmax=ctmax)
+      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0,c3=x[2],c4=x[3],scale=scale,Topt=topt, CTmax=ctmax)
       perfs= mean(perfs[96:length(perfs)])
       delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
+      delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
       totalerror=totalerror + sum(delta^2)
     }
     return( sqrt(totalerror) )
@@ -307,15 +312,35 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   opt<- nmkb(fn=errs, par=c(1,0.1,1), lower=c(0,0,0), upper=c(3,1,1.5) )
 
   #store output and fits
-  opts[expt,4,]<- c(opt$par[1], 0.000001, opt$par[2:3], 0, scale.est)
+  opts[expt,4,]<- c(opt$par[1], 0, opt$par[2:3], tp1, scale.est)
   fit[expt,4,1:2]<- c(opt$value, opt$convergence)
 
+  #5. drop repair
+  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){  
+    totalerror=0
+    treats=unique(temps$treatment)
+    for(i in 1:length(treats)){
+      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=0,c4=0,scale=scale,Topt=topt, CTmax=ctmax)
+      perfs= mean(perfs[96:length(perfs)])
+      delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
+      delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
+      totalerror=totalerror + sum(delta^2)
+    }
+    return( sqrt(totalerror) )
+  }
+  
+  opt<- nmkb(fn=errs, par=c(0.001,0.001), lower=c(0,0), upper=c(1,1)) #c(1.5,1,1,3)
+  
+  #store output and fits
+  opts[expt,5,]<- c(opt$par[1:2],0,0,tp1, scale.est)
+  fit[expt,5,1:2]<- c(opt$value, opt$convergence)
+  
   #---------
   #estimate AICs, https://stackoverflow.com/questions/39999456/aic-on-nls-on-r
   
-  scen.params<- c(4,5,3,3)
+  scen.params<- c(4,5,3,3,2)
   
-  for(scen in 1:4){
+  for(scen in 1:5){
     logL <- 0.5 *(- nrow(fecs) * (log(2*pi)+1-log(nrow(fecs)) + log(fit[expt,scen,1])))
     fit[expt, scen,3]= 2*(scen.params[scen] + 1) - 2 * logL 
     }
@@ -324,23 +349,43 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
 } #end loop experiments
   
   #-----------------
-  #Construct table
-  expt1<- cbind(expt="1", scenario=1:4, opts[1,,], fit[1,,])
-  expt2<- cbind(expt="2", scenario=1:4, opts[2,,], fit[2,,])
-  expt3<- cbind(expt="3", scenario=1:4, opts[3,,], fit[3,,])
-  expt4<- cbind(expt="4", scenario=1:4, opts[4,,], fit[4,,])
-  expt5<- cbind(expt="5", scenario=1:4, opts[5,,], fit[5,,])
-  expt6<- cbind(expt="6", scenario=1:4, opts[6,,], fit[6,,])
-  expt7<- cbind(expt="7", scenario=1:4, opts[7,,], fit[7,,])
+  #Construct tables
+  expt1<- cbind(expt="1", scenario=1:5, opts[1,,], fit[1,,c(1,3)])
+  expt2<- cbind(expt="2", scenario=1:5, opts[2,,], fit[2,,c(1,3)])
+  expt3<- cbind(expt="3", scenario=1:5, opts[3,,], fit[3,,c(1,3)])
+  expt4<- cbind(expt="4", scenario=1:5, opts[4,,], fit[4,,c(1,3)])
+  expt5<- cbind(expt="5", scenario=1:5, opts[5,,], fit[5,,c(1,3)])
+  expt6<- cbind(expt="6", scenario=1:5, opts[6,,], fit[6,,c(1,3)])
+  expt7<- cbind(expt="7", scenario=1:5, opts[7,,], fit[7,,c(1,3)])
   
+  #best scenario
+  #scens= c(1,3,3,3,3,2,2)
+  if(pm.ind==4) scens= c(1,5,5,3,5,5,5) #fec
+  if(pm.ind==1) scens= c(3,4,5,2,1,NA,5) #dev_rate
+  
+  for(i in 1:7){
+  scen1= c(expt=i, scenario=scens[i], opts[i,scens[i],], sse=fit[i,scens[i],1], aic=fit[i,scens[i],3]) 
+  if(i==1) scen.top= scen1
+  if(i>1) scen.top= rbind(scen.top, scen1)
+  }
+  
+  #other scenarios
   out<- rbind(expt1, expt2, expt3, expt4, expt5, expt6, expt7)
-  colnames(out)[3:ncol(out)]<- c("d_mult","d_linear","r_mag","r_breadth","tp","scale","sse","converge?","AIC")
+  colnames(out)[3:ncol(out)]<- c("d_time","d_temp","r_mag","r_breadth","tp","scale","sse","AIC")
   out<- as.data.frame(out)
-  out[,c(2:3,5:8)]<- round(as.numeric(unlist(out[,c(2:3,5:8)])), 4)
-  out[,4]<- round(as.numeric(unlist(out[,4])), 6)
-  out[,c(9,11)]<- round(as.numeric(unlist(out[,c(9,11)])),0)
   
-  out.scale<- rbind(opts.scale[1,,], opts.scale[2,,], opts.scale[3,,])
+  #estimate delta AIC
+  out$deltaAIC= as.numeric(out$AIC) - as.numeric(scen.top[match(out$expt, scen.top[,"expt"]),"aic"]) 
+  
+  #round
+  scen.top[,c(3:4)]= round(scen.top[,c(3:4)],8) 
+  scen.top[,c(5:8)]= round(scen.top[,c(5:8)],2) 
+  scen.top[,c(9:10)]<- round(as.numeric(scen.top[,c(9:10)]),0)
+  colnames(scen.top)[3:ncol(scen.top)]<- c("d_time","d_temp","r_mag","r_breadth","tp","scale","sse","AIC")
+  
+  out[,c(3:4)]<- round(as.numeric(unlist(out[,c(3:4)])), 8)
+  out[,c(5:9)]<- round(as.numeric(unlist(out[,c(5:9)])), 2)
+  out[,c(10:11)]<- round(as.numeric(unlist(out[,c(10:11)])), 0)
   
   #save output
   if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -348,13 +393,8 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   
   out_file <- paste("out_", pms[pm.ind], ".csv", sep="")
   write.csv(out, out_file)
-  out_file <- paste("opts_scale_", pms[pm.ind], ".csv", sep="")
-  write.csv(out.scale, out_file)
+  out_file <- paste("scen1_", pms[pm.ind], ".csv", sep="")
+  write.csv(scen.top, out_file)
   
-  #optimization options
-  #efficient package: https://cran.r-project.org/web/packages/lbfgs/vignettes/Vignette.pdf
-  #https://nlopt.readthedocs.io/en/latest/NLopt_Algorithms/
   
-  scen1= cbind(opts[,1,], fit[,1,1])
-  scen1[,c(3:4,6:7)]= round(scen1[,c(3:4,6:7)],2) 
   

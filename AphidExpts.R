@@ -11,7 +11,7 @@ library(TrenchR)
 library(zoo)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #Analysis for English grain aphid, Sitobion avenae
 
@@ -520,6 +520,8 @@ temps.n$NL1[inds]<- temps.h$Temp...C[match(temps.n$dt[inds], temps.h$dt)]
 
 #to long format
 temps.n <- temps.n[,c("ind","AE1","AE2","AE3","AE4","AE5","AE6","NL1","NL2","NL3","NL4","NL5","NL6")]
+#fix hour counter
+temps.n$ind=1:nrow(temps.n)
 temps.l<- melt(temps.n, id.vars = c("ind"), variable.name = "treatment")
 
 #fill 1 nas

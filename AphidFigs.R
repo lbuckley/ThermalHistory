@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 library(ggpubr)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -26,10 +26,13 @@ out.dr<- read.csv("out_dr.csv")
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
-pm.ind<- 4
+pm.ind<- 1
 
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scens= c(1,1,1,1,1,1,1)
+scens= c(1,5,5,3,5,5,5)   #tp=1: scens= c(1,3,3,3,3,2,2) scens= c(1,1,1,1,1,1,1)
+
+#set up default tp
+tp1=1
 
 #rename treatment in expt 3
 t3<- c("22_0","22_5","22_9","22_13")
@@ -97,7 +100,7 @@ ctmax= ts[which(ft[120:length(ft)]==0)[1]+120]
 ctmin= ts[which(ft>0)[1]-1]
 
 #Functions
-perf.damage<- function(pm, T,c1,c2,c3,c4,tp=0,scale,Topt=topt, CTmax=ctmax)  
+perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp1,scale,Topt=topt, CTmax=ctmax)  
 { 
   p=NA
   damage=0
@@ -411,7 +414,7 @@ pms<- c("dr", "sur", "long", "fec")
 pm.ind<- 1
 
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-scens= c(1,1,1,1,1,1,1)
+if(pm.ind==1) scens= c(3,4,5,2,1,NA,5) #dev_rate
 
 #extract performance values
 fecs<- PerfDat[PerfDat$metric=="dev_rate",]
