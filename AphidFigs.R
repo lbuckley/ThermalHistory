@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 library(ggpubr)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -30,17 +30,17 @@ pm.ind<- 4
 
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
 #scens= c(1,5,5,3,5,5,5)   #tp=1: scens= c(1,3,3,3,3,2,2) 
-scens= c(1,1,1,4,1,1,1)
+scens= c(1,1,1,1,1,5,1)
 
 #set up default tp
-tp1=1
+tp1=0.9
 
 #rename treatment in expt 3
 t3<- c("22_0","22_5","22_9","22_13")
 t3.lab<- c("00","05","09","13")
 temps.all$treatment[temps.all$expt==3]<- t3.lab[match(temps.all$treatment[temps.all$expt==3],t3)]
 PerfDat$treatment[PerfDat$expt==3]<- t3.lab[match(PerfDat$treatment[PerfDat$expt==3],t3)]
-#------------
+#====================
 #Constant rate TPCs
 #English grain aphid, Sitobion avenae
 #Zhao et al 2013
@@ -115,7 +115,7 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp1,scale,Topt=topt, CTmax=ctmax)
     #damage
     dur<- dur + ifelse(Tdif[i]>0, 1, 0)
     #damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]))
-    damage.n<- c1*dur+c2*Tdif[i]
+    damage.n<- c1*dur*ifelse(Tdif[i]>0, 1, 0)+c2*Tdif[i]
     damage= damage + damage.n
     
     if(damage<0) damage<-0

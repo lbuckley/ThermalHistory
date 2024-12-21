@@ -11,11 +11,11 @@ library(pracma)				# contains sigmoid function
 library(TrenchR)
 library(rvmethod) #gaussian function
 
-tp1=0.5
+tp1=0.9
 pm.ind=4
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -69,7 +69,7 @@ damage<- function(T, c1, c2, tp=tp1, damage.p=0, Topt=18.4, CTmax=30.1, dt=1) {
     #damage
     dur<- 3 #dur + ifelse(Tdif[i]>0, 1, 0)
     #damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]))
-    damage.n<- c1*dur+c2*Tdif[i]
+    damage.n<- c1*dur*ifelse(Tdif[i]>0, 1, 0)+c2*Tdif[i]
     damage= damage + damage.n
     
     if(damage<0) damage<-0
@@ -96,7 +96,7 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp1,scale,Topt=topt, CTmax=ctmax)
     #damage
     dur<- dur + ifelse(Tdif[i]>0, 1, 0)
     #damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]))
-    damage.n<- c1*dur+c2*Tdif[i]
+    damage.n<- c1*dur*ifelse(Tdif[i]>0, 1, 0)+c2*Tdif[i]
     damage= damage + damage.n
     
     if(damage<0) damage<-0
@@ -171,7 +171,7 @@ if(pm.ind==1){
     Tdif[which(Tdif<0)]<- 0
     
     dur=3 #use dur=3
-    damage.p1<- c1*dur+c2*Tdif[i]
+    damage.p1<- c1*dur*ifelse(Tdif[i]>0, 1, 0)+c2*Tdif[i]
     damage.p1= damage.p + damage.p1
     damage.p1[which(damage.p1<0)]<-0
     damage.p1[which(damage.p1>1)]<-1
@@ -187,7 +187,7 @@ if(pm.ind==4){
     Tdif[which(Tdif<0)]<- 0
     
     dur=3 #use dur=3
-    damage.p1<- c1*dur+c2*Tdif[i]
+    damage.p1<- c1*dur*ifelse(Tdif[i]>0, 1, 0)+c2*Tdif[i]
     damage.p1= damage.p + damage.p1
     damage.p1[which(damage.p1<0)]<-0
     damage.p1[which(damage.p1>1)]<-1
@@ -196,27 +196,27 @@ if(pm.ind==4){
   }
 }
 
-ddat<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.00001, c2=0.00001, tp=tp1, damage.p=0.01), type="damage", c1=0.1, c2=0.001, c3=0, c4=0, group=1.1))
-ddat2<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.001, c2=0.00001, tp=tp1, damage.p=0.01), type="damage", c1=0.1, c2=0.001, c3=0, c4=0, group=1.2))
-ddat3<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.00001, c2=0.001, tp=tp1, damage.p=0.01), type="damage", c1=0.01, c2=0.03, c3=0, c4=0, group=1.3))
-ddat4<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.001, c2=0.001, tp=tp1, damage.p=0.01), type="damage", c1=0.1, c2=0.03,  c3=0, c4=0, group=1.4))
+ddat<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.00001, c2=0.00001, tp=tp1, damage.p=0.01), type="damage", c1=0.00001, c2=0.00001, c3=0, c4=0, group=1.1))
+ddat2<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.0001, c2=0.00001, tp=tp1, damage.p=0.01), type="damage", c1=0.0001, c2=0.00001, c3=0, c4=0, group=1.2))
+ddat3<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.00001, c2=0.0001, tp=tp1, damage.p=0.01), type="damage", c1=0.00001, c2=0.0001, c3=0, c4=0, group=1.3))
+ddat4<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.0001, c2=0.0001, tp=tp1, damage.p=0.01), type="damage", c1=0.0001, c2=0.0001,  c3=0, c4=0, group=1.4))
 
 #performance with damage
-fdat<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.001, c2=0.00001, tp=tp1, damage.p=0.01), type="fecundity", c1=0.001, c2=0.00001, c3=0, c4=0, group=3.1))
-fdat2<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.1, c2=0.00001, tp=tp1, damage.p=0.01), type="fecundity", c1=0.1, c2=0.00001, c3=0, c4=0, group=3.2))
-fdat3<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.001, c2=0.1, tp=tp1, damage.p=0.01), type="fecundity", c1=0.001, c2=0.1, c3=0, c4=0, group=3.3))
-fdat4<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.1, c2=0.1, tp=tp1, damage.p=0.01), type="fecundity", c1=0.1, c2=0.1,  c3=0, c4=0, group=3.4))
+fdat<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.00001, c2=0.00001, tp=tp1, damage.p=0), type="fecundity", c1=0.00001, c2=0.00001, c3=0, c4=0, group=3.1))
+#fdat2<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.1, c2=0.00001, tp=tp1, damage.p=0), type="fecundity", c1=0.1, c2=0.00001, c3=0, c4=0, group=3.2))
+#fdat3<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.00001, c2=1, tp=tp1, damage.p=0), type="fecundity", c1=0.00001, c2=1, c3=0, c4=0, group=3.3))
+#fdat4<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.1, c2=1, tp=tp1, damage.p=0), type="fecundity", c1=0.1, c2=1, c3=0, c4=0, group=3.4))
 
 #repair
 repair<- function(T, c3, c4, Topt=18.4) c3*gaussfunc(T, mu = Topt, sigma = c4)
 rdat<- as.data.frame(cbind(temp=ts, value=repair(ts, c3=0.2, c4=1), type="repair", c1=0, c2=0, c3=0.2, c4=1, group=2.1))
-rdat2<- as.data.frame(cbind(temp=ts, value=repair(ts, c3=0.5, c4=1), type="repair", c1=0, c2=0, c3=0.05, c4=1, group=2.2))
+rdat2<- as.data.frame(cbind(temp=ts, value=repair(ts, c3=0.5, c4=1), type="repair", c1=0, c2=0, c3=0.5, c4=1, group=2.2))
 rdat3<- as.data.frame(cbind(temp=ts, value=repair(ts, c3=0.2, c4=3), type="repair", c1=0, c2=0, c3=0.2, c4=3, group=2.3))
-rdat4<- as.data.frame(cbind(temp=ts, value=repair(ts, c3=0.5, c4=3), type="repair", c1=0, c2=0, c3=0.05, c4=3, group=2.4))
+rdat4<- as.data.frame(cbind(temp=ts, value=repair(ts, c3=0.5, c4=3), type="repair", c1=0, c2=0, c3=0.5, c4=3, group=2.4))
 
 #combine
 pdat<- rbind(cdat, rdat, rdat2, rdat3, rdat4, ddat, ddat2, ddat3, ddat4,
-             fdat, fdat2, fdat3, fdat4)
+             fdat)
 pdat$temp<- as.numeric(pdat$temp); pdat$value<- as.numeric(pdat$value);
 pdat$c1<- as.numeric(pdat$c1); pdat$c2<- as.numeric(pdat$c2); pdat$c3<- as.numeric(pdat$c3); pdat$c4<- as.numeric(pdat$c4)
 
@@ -224,12 +224,16 @@ pdat$c1<- as.numeric(pdat$c1); pdat$c2<- as.numeric(pdat$c2); pdat$c3<- as.numer
 #plot
 
 #fecundity
-f.fig<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=temp, y =value, color=factor(c1), lty=factor(c2), group=group))+
-  geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
-  ylab("Performance")+xlab("Temperature (C)") + 
-  scale_colour_brewer(palette = "Dark2") +
-  theme(legend.position = "bottom",  legend.box = 'vertical')+theme(legend.spacing.y = unit(3, "pt"))+
-  labs(colour="d_mult", lty="d_linear")
+# f.fig<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=temp, y =value, color=factor(c1), lty=factor(c2), group=group))+
+#   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+ 
+#   ylab("Performance")+xlab("Temperature (C)") + 
+#   scale_colour_brewer(palette = "Dark2") +
+#   theme(legend.position = "bottom",  legend.box = 'vertical')+theme(legend.spacing.y = unit(3, "pt"))+
+#   labs(colour="d_time", lty="d_temp")
+
+f.fig<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=temp, y =value, group=group))+
+     geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+ 
+     ylab("Performance")+xlab("Temperature (C)") 
 
 if(pm.ind==1) {dr.fig<-f.fig; dr.fig= dr.fig+ylab("Development Rate (1/days)")}
 if(pm.ind==4) {fec.fig<-f.fig; fec.fig= fec.fig+ylab("Fecundity") }
@@ -240,7 +244,7 @@ d.fig= ggplot(data=pdat[which(pdat$type=="damage"),], aes(x=temp, y =value, colo
   ylab("Damage (proportion)") +xlab("Temperature (C)")+ 
   scale_colour_brewer(palette = "Dark2") +
   theme(legend.position = "bottom",  legend.box = 'vertical')+
-  labs(colour="d_mult", lty="d_linear")
+  labs(colour="d_time", lty="d_temp")
 
 #repair
 r.fig= ggplot(data=pdat[which(pdat$type=="repair"),], aes(x=temp, y =value, color=factor(c3), lty=factor(c4), group=group))+
@@ -262,12 +266,9 @@ ts<- temps
 #performance without repair
 fdat0<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.0, c2=0.0000, c3=0, c4=1, scale=1), type="fecundity", c1=0, c2=0.000, c3=0, c4=1, group=3.0))
 fdat<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.0001, c2=0.0001, c3=0, c4=1, scale=1), type="fecundity", c1=0.0001, c2=0.0001, c3=0, c4=1, group=3.1))
-fdat2<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.0001, c2=0.0005, c3=0, c4=1, scale=1), type="fecundity", c1=0.0001, c2=0.0005, c3=0, c4=1, group=3.2))
+fdat2<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.0001, c2=0.001, c3=0, c4=1, scale=1), type="fecundity", c1=0.0001, c2=0.001, c3=0, c4=1, group=3.2))
 fdat3<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.001, c2=0.0001, c3=0, c4=1, scale=1), type="fecundity", c1=0.001, c2=0.0001,  c3=0, c4=1, group=3.3))
-fdat4<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.001, c2=0.0005, c3=0, c4=1, scale=1), type="fecundity", c1=0.001, c2=0.0001,  c3=0, c4=1, group=3.4))
-
-fdat5<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.005, c2=0.0005, c3=0, c4=1, scale=1), type="fecundity", c1=0.005, c2=0.0005,  c3=0, c4=1, group=3.5))
-fdat6<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.001, c2=0.01, c3=0, c4=1, scale=1), type="fecundity", c1=0.001, c2=0.01,  c3=0, c4=1, group=3.6))
+fdat4<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.001, c2=0.001, c3=0, c4=1, scale=1), type="fecundity", c1=0.001, c2=0.001,  c3=0, c4=1, group=3.4))
 
 #add repair
 ddat<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.001, c2=0.01, c3=0.05, c4=1, scale=1), type="perf repair", c1=0.001, c2=0.01, c3=0.05, c4=1, group=1.1))
@@ -276,7 +277,7 @@ ddat3<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, 
 ddat4<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.001, c2=0.01, c3=0.2, c4=3, scale=1), type="perf repair", c1=0.001, c2=0.01, c3=0.2, c4=3, group=1.4))
 
 #combine
-pdat<- rbind(ddat, ddat2, ddat3, ddat4, fdat0, fdat, fdat2, fdat3, fdat4, fdat5, fdat6)
+pdat<- rbind(ddat, ddat2, ddat3, ddat4, fdat0, fdat, fdat2, fdat3, fdat4)
 pdat$time<- as.numeric(pdat$time); pdat$temp<- as.numeric(pdat$temp); pdat$value<- as.numeric(pdat$value);
 pdat$c1<- as.numeric(pdat$c1); pdat$c2<- as.numeric(pdat$c2); pdat$c3<- as.numeric(pdat$c3); pdat$c4<- as.numeric(pdat$c4)
 
@@ -292,7 +293,7 @@ f.fig.ts<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=time, y =valu
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
   ylab("Performance")+
   scale_colour_brewer(palette = "Dark2") +theme(legend.position = "bottom")+
-  labs(colour="d_mult", lty="d_linear")
+  labs(colour="d_time", lty="d_temp")
 
 #add repair
 pr.fig.ts<- ggplot(data=pdat[which(pdat$type=="perf repair"),], aes(x=time, y =value, color=factor(c3), lty=factor(c4), group=group))+

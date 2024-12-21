@@ -13,14 +13,14 @@ library(rvmethod) #gaussian function
 library(dfoptim)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
 #pick metric
 pm.ind<- 4
 #set default tp
-tp1=1
+tp1=0.9
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -85,8 +85,8 @@ fec= function(T, a= -69.1, b=12.49, c= -0.34){
 #FUNCTIONS
 #damage
 # tp: threshold for damage between Topt and CTmax; Tdamage= Topt + (CTmax-Topt)*tp
-# c1: d_mult: multiplicative change in damage
-# c2: d_linear: linear increase in damage
+# c1: d_time: effect of duration of exposure
+# c2: d_temp: linear increase in damage
 # c3: r_mag: magnitude of repair
 # c4: r_breadth: breadth of repair function around Topt
 
@@ -109,12 +109,14 @@ ctmin= ts[which(ft>0)[1]-1]
 # plot(ts, fec(ts))
 
 #--------------------
+#pm=pm.ind; T=temps.expt$temp; c1=cs[1]; c2=cs[2]; c3=cs[3]; c4=cs[4]; tp=cs[5]; scale=cs[6]
+
 perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp1,scale,Topt=topt, CTmax=ctmax)  
 { 
   p=NA
   damage=0
-  dur=0
-
+  dur=0 
+  
   Tdamage= Topt + (CTmax-Topt)*tp
   Tdif= T-Tdamage
   if(length(which(Tdif<0))>0) Tdif[which(Tdif<0)]<- 0
@@ -123,7 +125,8 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp1,scale,Topt=topt, CTmax=ctmax)
     #damage
     dur<- dur + ifelse(Tdif[i]>0, 1, 0)
     #damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]))
-    damage.n<- c1*dur+c2*Tdif[i]
+    damage.n<- c1*dur*ifelse(Tdif[i]>0, 1, 0)+c2*Tdif[i]
+    
     damage= damage + damage.n
     
     if(damage<0) damage<-0
@@ -141,8 +144,9 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp1,scale,Topt=topt, CTmax=ctmax)
     if(i==1) perf.all=p*scale
     if(i>1) perf.all=c(perf.all, p*scale)
   } #end loop temperature series
-return(perf.all)
+  return(perf.all)
 }
+
 
 #perf.damage(pm=pm.ind, T=temps.all[which(temps.all$expt==1 & temps.all$treatment==13),"temp"], c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5],Topt=topt, CTmax=ctmax)
 
@@ -362,7 +366,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   
   #best scenario
   #scens= c(1,3,3,3,3,2,2)
-  if(pm.ind==4) scens= c(1,1,1,4,1,1,1) #fec
+  if(pm.ind==4) scens= c(1,1,1,1,1,1,1) #fec
   if(pm.ind==1) scens= c(1,1,1,4,1,NA,1) #dev_rate
   
   for(i in 1:7){
@@ -390,7 +394,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   out[,c(5:9)]<- round(as.numeric(unlist(out[,c(5:9)])), 2)
   out[,c(10:12)]<- round(as.numeric(unlist(out[,c(10:12)])), 0)
   out[,c(13)]<- round(as.numeric(unlist(out[,c(13)])), 2)
-  
+   
   #save output
   if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
   if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
