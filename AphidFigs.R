@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 library(ggpubr)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")

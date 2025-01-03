@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 library(dfoptim)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
@@ -89,6 +89,7 @@ fec= function(T, a= -69.1, b=12.49, c= -0.34){
 # c2: d_temp: linear increase in damage
 # c3: r_mag: magnitude of repair
 # c4: r_breadth: breadth of repair function around Topt
+# c5: drop repair
 
 #find Topt and CTmax
 ts=seq(0,40,0.1)
@@ -111,7 +112,7 @@ ctmin= ts[which(ft>0)[1]-1]
 #--------------------
 #pm=pm.ind; T=temps.expt$temp; c1=cs[1]; c2=cs[2]; c3=cs[3]; c4=cs[4]; tp=cs[5]; scale=cs[6]
 
-perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp1,scale,Topt=topt, CTmax=ctmax)  
+perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp,scale,Topt=topt, CTmax=ctmax)  
 { 
   p=NA
   damage=0
@@ -124,8 +125,9 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp1,scale,Topt=topt, CTmax=ctmax)
   for(i in 1:length(T)){
     #damage
     dur<- dur + ifelse(Tdif[i]>0, 1, 0)
-    #damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]))
     damage.n<- c1*dur*ifelse(Tdif[i]>0, 1, 0)+c2*Tdif[i]
+    #damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]))
+    #damage.n<- c1*exp(dur)*ifelse(Tdif[i]>0, 1, 0)+c2*exp(Tdif[i])
     
     damage= damage + damage.n
     
@@ -201,10 +203,32 @@ if(pm.ind==4) fecs.all<- PerfDat[PerfDat$metric=="fecundity",]
 #2. fit tp
 #3. drop c1
 #4. drop c2 with floor for damage c2=0.000001
+#5. drop repair
 
 #store output
 opts= array(NA, dim=c(7,5,6), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4", "s5"), c("c1","c2","c3","c4","tp","scale")))
 fit= array(NA, dim=c(7,5,4), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4", "s5"), c("sse","convergence","aic", "bic")))
+
+#error function
+errs<- function(x,scen=scen1, temps=tempse, fecundity=fecs, scale=scale.est, pm=pm.ind){  
+  
+  if(scen==1) {c1=x[1]; c2=x[2]; c3=x[3]; c4=x[4]; tp=tp1}
+  if(scen==2) {c1=x[1]; c2=x[2]; c3=x[3]; c4=x[4]; tp=x[5]}
+  if(scen==3) {c1=0; c2=x[1]; c3=x[2]; c4=x[3]; tp=tp1}
+  if(scen==4) {c1=x[1]; c2=0; c3=x[2]; c4=x[3]; tp=tp1}
+  if(scen==5) {c1=x[1]; c2=x[2]; c3=0; c4=0; tp=tp1}
+  
+  totalerror=0
+  treats=unique(temps$treatment)
+  for(i in 1:length(treats)){
+    perfs=perf.damage(pm=pm, T=temps[temps$treatment==treats[i],"temp"],c1=c1,c2=c2,c3=c3,c4=c4,scale=scale,Topt=topt, CTmax=ctmax)
+    perfs= mean(perfs[96:length(perfs)])
+    delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
+    delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
+    totalerror=totalerror + sum(delta^2)
+  }
+  return( sqrt(totalerror) )
+}
 
 #loop through 7 experiments 
 for(expt in c(1:7)){ 
@@ -239,102 +263,42 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
  
   #-----------
 #optimize
-  #1. fit four parameters
-  #error function
-  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){  
-    totalerror=0
-    treats=unique(temps$treatment)
-    for(i in 1:length(treats)){
-      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],scale=scale,Topt=topt, CTmax=ctmax)
-      perfs= mean(perfs[96:length(perfs)])
-      delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
-      delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
-      totalerror=totalerror + sum(delta^2)
-      }
-    return( sqrt(totalerror) )
-  }
   
-  opt<- nmkb(fn=errs, par=c(0.001,0.001,0.1,1), lower=c(0,0,0,0), upper=c(1,1,1,3)) #c(1.5,1,1,3)
+  #1. fit four parameters
+  scen1=1
+  opt<- nmkb(fn=errs, par=c(0.001,0.001,0.1,1), lower=c(0,0,0,0), upper=c(0.5,0.5,1,3) ) #c(1.5,1,1,3)
   
   #store output and fits
   opts[expt,1,]<- c(opt$par[1:4], tp1, scale.est)
   fit[expt,1,1:2]<- c(opt$value, opt$convergence)
   
   #2. fit tp
-  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){
-    totalerror=0
-    treats=unique(temps$treatment)
-    for(i in 1:length(treats)){
-      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=x[3],c4=x[4],tp=x[5],scale=scale,Topt=topt, CTmax=ctmax)
-      perfs= mean(perfs[96:length(perfs)])
-      delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
-      delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
-      totalerror=totalerror + sum(delta^2)
-    }
-    return( sqrt(totalerror) )
-  }
-
-  opt<- nmkb(fn=errs, par=c(1,0.001,0.1,1,0.5), lower=c(0,0,0,0,0), upper=c(1.5,2,1,3,1) )
-
+  scen1=2
+  opt<- nmkb(fn=errs, par=c(0.001,0.001,0.1,1,0.5), lower=c(0,0,0,0,0), upper=c(0.5,0.5,1,3,1) )
+  
   #store output and fits
   opts[expt,2,]<- c(opt$par, scale.est)
   fit[expt,2,1:2]<- c(opt$value, opt$convergence)
 
   #3. drop c1
-  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){
-    totalerror=0
-    treats=unique(temps$treatment)
-    for(i in 1:length(treats)){
-      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=0,c2=x[1],c3=x[2],c4=x[3],scale=scale,Topt=topt, CTmax=ctmax)
-      perfs= mean(perfs[96:length(perfs)])
-      delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
-      delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
-      totalerror=totalerror + sum(delta^2)
-    }
-    return( sqrt(totalerror) )
-  }
-
-  opt<- nmkb(fn=errs, par=c(0.001,0.1,1), lower=c(0,0,0), upper=c(2,1,1.5) )
+  scen1=3
+  opt<- nmkb(fn=errs, par=c(0.001,0.1,1), lower=c(0,0,0), upper=c(0.5,1,3) )
 
   #store output and fits
   opts[expt,3,]<- c(0, opt$par, tp1, scale.est)
   fit[expt,3,1:2]<- c(opt$value, opt$convergence)
 
   #4. drop c2 
-  errs<- function(x, temps=tempse, fecundity=fecs, scale=scale.est){
-    totalerror=0
-    treats=unique(temps$treatment)
-    for(i in 1:length(treats)){
-      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=0,c3=x[2],c4=x[3],scale=scale,Topt=topt, CTmax=ctmax)
-      perfs= mean(perfs[96:length(perfs)])
-      delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
-      delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
-      totalerror=totalerror + sum(delta^2)
-    }
-    return( sqrt(totalerror) )
-  }
-
-  opt<- nmkb(fn=errs, par=c(1,0.1,1), lower=c(0,0,0), upper=c(3,1,1.5) )
-
+  scen1=4
+  opt<- nmkb(fn=errs, par=c(0.001,0.1,1), lower=c(0,0,0), upper=c(0.5,1,3) )
+  
   #store output and fits
   opts[expt,4,]<- c(opt$par[1], 0, opt$par[2:3], tp1, scale.est)
   fit[expt,4,1:2]<- c(opt$value, opt$convergence)
 
   #5. drop repair
-  errs<- function(x,temps=tempse, fecundity=fecs, scale=scale.est){  
-    totalerror=0
-    treats=unique(temps$treatment)
-    for(i in 1:length(treats)){
-      perfs=perf.damage(pm.ind, T=temps[temps$treatment==treats[i],"temp"],c1=x[1],c2=x[2],c3=0,c4=0,scale=scale,Topt=topt, CTmax=ctmax)
-      perfs= mean(perfs[96:length(perfs)])
-      delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
-      delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
-      totalerror=totalerror + sum(delta^2)
-    }
-    return( sqrt(totalerror) )
-  }
-  
-  opt<- nmkb(fn=errs, par=c(0.001,0.001), lower=c(0,0), upper=c(1,1)) #c(1.5,1,1,3)
+  scen1=5
+  opt<- nmkb(fn=errs, par=c(0.001,0.001), lower=c(0,0), upper=c(0.5,0.5)) 
   
   #store output and fits
   opts[expt,5,]<- c(opt$par[1:2],0,0,tp1, scale.est)
@@ -345,10 +309,10 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   
   scen.params<- c(4,5,3,3,2)
   
-  for(scen in 1:5){
-    logL <- 0.5 *(- nrow(fecs) * (log(2*pi)+1-log(nrow(fecs)) + log(fit[expt,scen,1])))
-    fit[expt, scen,3]= 2*(scen.params[scen] + 1) - 2 * logL 
-    fit[expt, scen,4]= log(nrow(fecs))*(scen.params[scen] + 1) - 2 * logL #BIC
+  for(scen.k in 1:5){
+    logL <- 0.5 *(- nrow(fecs) * (log(2*pi)+1-log(nrow(fecs)) + log(fit[expt,scen.k,1])))
+    fit[expt, scen.k,3]= 2*(scen.params[scen.k] + 1) - 2 * logL 
+    fit[expt, scen.k,4]= log(nrow(fecs))*(scen.params[scen.k] + 1) - 2 * logL #BIC
     }
    
 } #end check data exists
