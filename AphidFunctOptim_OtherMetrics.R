@@ -167,28 +167,28 @@ perf.nodamage<- function(pm, series,scale)  {
 }
 
 #-----------
-#plot parameter values
-ts= seq(1, 35, 0.5)
-temps= c(ts, rev(ts),ts, rev(ts))
-
-#make parameter combinations 
-cs<- expand.grid(c1=seq(0, 1, 0.25), c2= seq(0, .01, 0.003), c3= seq(0, 1, 0.25), c4= seq(1, 5, 1),
-                 scale= 1 )
-
-#fit values
-#cs<- expand.grid(c1=c(1.95,2), c2= c(0.0007, 0.001), c3= c(0.25,0.66), c4= c(1.1, 1.3), scale= 0.01)
-cs<- expand.grid(c1=c(0.01,1), c2= c(0.01,1), c3= c(0.2,0.9), c4= c(1, 3), scale= 0.01)
-
-for(k in 1:nrow(cs)){
-  p1= perf.damage(pm=pm.ind, temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
-  ps= cbind(time=1:length(temps), temps, p1, k, cs[k,])
-  if(k==1) ps.all<- ps
-  if(k>1) ps.all<- rbind(ps.all, ps)
-}
-
-funct.fig<- ggplot(data=ps.all, aes(x=time, y =p1, color=c3, lty=factor(c4), group=k))+
-  geom_line()+facet_grid(c2~c1)+theme_bw()+
-  ylab("Performance")+scale_color_viridis()
+# #plot parameter values
+# ts= seq(1, 35, 0.5)
+# temps= c(ts, rev(ts),ts, rev(ts))
+# 
+# #make parameter combinations 
+# cs<- expand.grid(c1=seq(0, 1, 0.25), c2= seq(0, .01, 0.003), c3= seq(0, 1, 0.25), c4= seq(1, 5, 1),
+#                  scale= 1 )
+# 
+# #fit values
+# #cs<- expand.grid(c1=c(1.95,2), c2= c(0.0007, 0.001), c3= c(0.25,0.66), c4= c(1.1, 1.3), scale= 0.01)
+# cs<- expand.grid(c1=c(0.01,1), c2= c(0.01,1), c3= c(0.2,0.9), c4= c(1, 3), scale= 0.01)
+# 
+# for(k in 1:nrow(cs)){
+#   p1= perf.damage(pm=pm.ind, temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
+#   ps= cbind(time=1:length(temps), temps, p1, k, cs[k,])
+#   if(k==1) ps.all<- ps
+#   if(k>1) ps.all<- rbind(ps.all, ps)
+# }
+# 
+# funct.fig<- ggplot(data=ps.all, aes(x=time, y =p1, color=c3, lty=factor(c4), group=k))+
+#   geom_line()+facet_grid(c2~c1)+theme_bw()+
+#   ylab("Performance")+scale_color_viridis()
 
 #==================
 #FIT MODEL, compare AIC of different assumptions
@@ -209,8 +209,12 @@ if(pm.ind==4) fecs.all<- PerfDat[PerfDat$metric=="fecundity",]
 opts= array(NA, dim=c(7,5,6), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4", "s5"), c("c1","c2","c3","c4","tp","scale")))
 fit= array(NA, dim=c(7,5,4), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4", "s5"), c("sse","convergence","aic", "bic")))
 
+#----
+#x=opt$par[1:4]
+#scen=scen1; temps=tempse; fecundity=fecs; scale=scale.est; pm1=pm.ind
+
 #error function
-errs<- function(x,scen=scen1, temps=tempse, fecundity=fecs, scale=scale.est, pm=pm.ind){  
+errs<- function(x,scen=scen1, temps=tempse, fecundity=fecs, scale=scale.est, pm1=pm.ind){  
   
   if(scen==1) {c1=x[1]; c2=x[2]; c3=x[3]; c4=x[4]; tp=tp1}
   if(scen==2) {c1=x[1]; c2=x[2]; c3=x[3]; c4=x[4]; tp=x[5]}
@@ -221,13 +225,12 @@ errs<- function(x,scen=scen1, temps=tempse, fecundity=fecs, scale=scale.est, pm=
   totalerror=0
   treats=unique(temps$treatment)
   for(i in 1:length(treats)){
-    perfs=perf.damage(pm=pm, T=temps[temps$treatment==treats[i],"temp"],c1=c1,c2=c2,c3=c3,c4=c4,scale=scale,Topt=topt, CTmax=ctmax)
+    perfs=perf.damage(pm=pm1, T=temps[temps$treatment==treats[i],"temp"],c1=c1,c2=c2,c3=c3,c4=c4,tp=tp, scale=scale,Topt=topt, CTmax=ctmax)
     perfs= mean(perfs[96:length(perfs)])
     delta= fecundity[which(fecundity$treatment==treats[i]),"value"]- perfs
-    delta=delta/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
-    totalerror=totalerror + sum(delta^2)
+    totalerror=totalerror + sum(delta^2)/nrow(fecundity[which(fecundity$treatment==treats[i]),]) #weight by number replicates
   }
-  return( sqrt(totalerror) )
+  return( totalerror )
 }
 
 #loop through 7 experiments 
