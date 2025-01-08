@@ -89,7 +89,6 @@ fec= function(T, a= -69.1, b=12.49, c= -0.34){
 # c2: d_temp: linear increase in damage
 # c3: r_mag: magnitude of repair
 # c4: r_breadth: breadth of repair function around Topt
-# c5: drop repair
 
 #find Topt and CTmax
 ts=seq(0,40,0.1)
@@ -148,7 +147,6 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp,scale,Topt=topt, CTmax=ctmax)
   } #end loop temperature series
   return(perf.all)
 }
-
 
 #perf.damage(pm=pm.ind, T=temps.all[which(temps.all$expt==1 & temps.all$treatment==13),"temp"], c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5],Topt=topt, CTmax=ctmax)
 
@@ -334,7 +332,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   #best scenario
   #scens= c(1,3,3,3,3,2,2)
   if(pm.ind==4) scens= c(1,1,1,1,1,1,1) #fec
-  if(pm.ind==1) scens= c(1,1,1,4,1,NA,1) #dev_rate
+  if(pm.ind==1) scens= c(1,1,1,1,1,NA,1) #dev_rate
   
   for(i in 1:7){
   scen1= c(expt=i, scenario=scens[i], opts[i,scens[i],], sse=fit[i,scens[i],1], aic=fit[i,scens[i],3], bic=fit[i,scens[i],4]) 

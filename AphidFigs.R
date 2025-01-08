@@ -416,7 +416,7 @@ pms<- c("dr", "sur", "long", "fec")
 pm.ind<- 1
 
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-if(pm.ind==1) scens= c(3,4,5,2,1,NA,5) #dev_rate
+if(pm.ind==1) scens= c(1,1,1,1,1,NA,1)  #c(3,4,5,2,1,NA,5) #dev_rate
 
 #extract performance values
 fecs<- PerfDat[PerfDat$metric=="dev_rate",]

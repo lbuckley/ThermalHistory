@@ -11,7 +11,7 @@ library(TrenchR)
 library(zoo)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #Analysis for English grain aphid, Sitobion avenae
 
@@ -146,6 +146,7 @@ temps.all<- rbind(temps.all, temps.l)
 
 #developmental rate
 adat5.p$dr= 1/(adat5.p$DurL/24) #check conversion from hourly
+#check low durations at high temperatures
 #nymphal data
 
 # #Fecundity, Longevity
