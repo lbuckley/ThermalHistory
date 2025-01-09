@@ -11,7 +11,7 @@ library(TrenchR)
 library(zoo)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #Analysis for English grain aphid, Sitobion avenae
 
@@ -164,7 +164,12 @@ adat5.p.l$treatment<- adat5.p.l$Dmax_C
 obs<- adat5.p.l[,c("treatment","metric","value")]
 obs$expt<- 2
 
+#drop high outliers
+obs<- obs[-which(obs$metric=="dr" & obs$value>0.15),]
+
 PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt")])
+
+ggplot(data=adat5.p, aes(x=Dmax_C, y =dr))+geom_point()
 
 #=====
 #Expt 3: vary variance (expt 3, mild means)
