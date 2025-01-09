@@ -54,7 +54,14 @@ dr.c= function(T, Tmax=34.09, a=0.13, b=4.43, c=7.65) {
 }
 
 #European clones
-dr= function(T, Tmax=32.91, a=0.13, b=4.28, c=7.65){ 
+dr.e= function(T, Tmax=32.91, a=0.13, b=4.28, c=7.65){ 
+  d=exp(a*T)-exp(b-(Tmax-T)/c)
+  d[d<0]<- 0
+  return(d)
+}
+
+#use Ma et al 2015
+dr= function(T, Tmax=32.947, a=0.137, b=4.514, c=7.267){ 
   d=exp(a*T)-exp(b-(Tmax-T)/c)
   d[d<0]<- 0
   return(d)
@@ -246,6 +253,11 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   
   #account for field and lab populations in Figure 4
   #drop treatments with no estimated performance
+  
+  if(expt==3){
+    fecs<- fecs[which(fecs$population=="lab"),] #field estimates large
+  }
+  
   if(expt==4){
     fecs<- fecs[which(fecs$population=="lab"),] #field estimates large
   fecs<- fecs[-which(fecs$treatment %in% c("30_0","32_0")),]

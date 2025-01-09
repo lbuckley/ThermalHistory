@@ -255,9 +255,7 @@ obs<- adat4.var.m[,c("treatment","metric","value","population")]
 obs$expt<- 3
 obs$expt[which(obs$treatment %in% c("28_0", "28_5", "30_0", "30_5", "32_0", "32_5"))]<- 4
 
-#add field to distinguish lab and field
 PerfDat$population<- NA
-
 PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population")])
 
 #=========================================
