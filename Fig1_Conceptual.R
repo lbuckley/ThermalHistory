@@ -12,10 +12,10 @@ library(TrenchR)
 library(rvmethod) #gaussian function
 
 tp1=0.9
-pm.ind=4
+pm.ind=4 #run also pm.ind=1
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -38,7 +38,14 @@ ctmax= ts[which(ft[120:length(ft)]==0)[1]+120]
 ctmin= ts[which(ft>0)[1]-1]
 
 #Dev rate
-dr= function(T, Tmax=32.91, a=0.13, b=4.28, c=7.65){ 
+dr.e= function(T, Tmax=32.91, a=0.13, b=4.28, c=7.65){ 
+  d=exp(a*T)-exp(b-(Tmax-T)/c)
+  d[d<0]<- 0
+  return(d)
+}
+
+#use Ma et al 2015
+dr= function(T, Tmax=32.947, a=0.137, b=4.514, c=7.267){ 
   d=exp(a*T)-exp(b-(Tmax-T)/c)
   d[d<0]<- 0
   return(d)

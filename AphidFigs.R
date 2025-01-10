@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 library(ggpubr)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -40,6 +40,9 @@ t3<- c("22_0","22_5","22_9","22_13")
 t3.lab<- c("00","05","09","13")
 temps.all$treatment[temps.all$expt==3]<- t3.lab[match(temps.all$treatment[temps.all$expt==3],t3)]
 PerfDat$treatment[PerfDat$expt==3]<- t3.lab[match(PerfDat$treatment[PerfDat$expt==3],t3)]
+
+#drop field treatments
+PerfDat <- PerfDat[-which(PerfDat$population=="field"),]
 #====================
 #Constant rate TPCs
 #English grain aphid, Sitobion avenae
@@ -57,7 +60,14 @@ dr.c= function(T, Tmax=34.09, a=0.13, b=4.43, c=7.65) {
 }
 
 #European clones
-dr= function(T, Tmax=32.91, a=0.13, b=4.28, c=7.65){ 
+dr.e= function(T, Tmax=32.91, a=0.13, b=4.28, c=7.65){ 
+  d=exp(a*T)-exp(b-(Tmax-T)/c)
+  d[d<0]<- 0
+  return(d)
+}
+
+#use Ma et al 2015
+dr= function(T, Tmax=32.947, a=0.137, b=4.514, c=7.267){ 
   d=exp(a*T)-exp(b-(Tmax-T)/c)
   d[d<0]<- 0
   return(d)
@@ -424,7 +434,7 @@ if(pm.ind==1) scens= c(1,1,1,1,1,NA,1)  #c(3,4,5,2,1,NA,5) #dev_rate
 fecs<- PerfDat[PerfDat$metric=="dev_rate",]
 
 #----------
-for(expt in 1:7){
+for(expt in c(1:5,7)){
   temps.expt<- temps.all[temps.all$expt==expt,]
   #drop first=2 for experiment 5
   if(expt==5){
@@ -433,10 +443,10 @@ for(expt in 1:7){
     temps.expt= temps.expt[treats[,3]==1,]
   }
   
-  cs<- as.numeric(out.dr[which(out.dr$expt==expt & out.dr$scenario==scens[expt]),4:9])
+  cs<- as.numeric(out.dr[which(out.dr$expt==expt & out.dr$scenario==scens[expt]),4:10])
   
-  p1= perf(pm=pm.ind, temps.expt$temp, c1=cs[1], c2=cs[2], c3=cs[3], c4=cs[4], tp=cs[5], scale=cs[6])
-  p1.nd= perf.nodamage(pm=pm.ind, temps.expt$temp, scale=cs[6])
+  p1= perf.damage(pm=pm.ind, temps.expt$temp, c1=cs[1], c2=cs[2], c3=cs[3], c4=cs[4], tp=cs[5], tr=cs[6], scale=cs[7])
+  p1.nd= perf.nodamage(pm=pm.ind, temps.expt$temp, scale=cs[7])
   
   d1<- data.frame(metric="perf.nd",value=p1.nd, time=temps.expt$time, treatment=temps.expt$treatment) 
   d2<- data.frame(metric="perf",value=p1, time=temps.expt$time, treatment=temps.expt$treatment)
@@ -502,14 +512,14 @@ for(expt in c(1:5,7)){
   fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, group=metric))+
     geom_point(size=2)+geom_line(lwd=1.5)+
     theme_bw(base_size=16) +theme(legend.position = "none")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))+
-    labs(title=d1.agg.e$elab)+ylab("development time")+xlab(xlabs[expt])
+    labs(title=d1.agg.e$elab)+ylab("development rate (1/day)")+xlab(xlabs[expt])
   
   if(expt==4){
     d1.agg.e$tmet<- paste(d1.agg.e$metric, d1.agg.e$tvar, sep="_")
     fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, lty=factor(tvar), group=tmet))+
       geom_point(size=2)+geom_line(lwd=1.5)+
       theme_bw(base_size=16) +theme(legend.position = c(0.9,0.70),legend.background=element_blank())+scale_color_brewer(palette="Dark2")+guides(colour ="none")+
-      labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("development time")+xlab(xlabs[expt])
+      labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("development rate (1/day)")+xlab(xlabs[expt])
   }
   
   if(expt==5){
@@ -517,7 +527,7 @@ for(expt in c(1:5,7)){
     fplot= ggplot(data=d1.agg.e, aes(x=normaldays, y =value, color=metric, group=tmet, lty=hotdays))+
       geom_point(size=2)+geom_line(lwd=1.5)+
       theme_bw(base_size=16) +theme(legend.position = c(0.15,0.70),legend.background=element_blank())+scale_color_brewer(palette="Dark2")+guides(colour = "none")+
-      labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("development time")+xlab(xlabs[expt])
+      labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("development rate (1/day)")+xlab(xlabs[expt])
   }
   
   if(expt==1) fplot.e1<- fplot

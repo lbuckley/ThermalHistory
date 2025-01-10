@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 library(dfoptim)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
@@ -267,7 +267,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   #scale
   scale.est= 1
   
-  #if performance with out damage is less than observed fecundity, adjust scale
+  #if performance without damage is less than observed fecundity, adjust scale
   #performance estimation by treatment
   tempse$p.nd<- perf.nodamage(pm=pm.ind, tempse[,"temp"], scale=1)
   #mean by treatment
@@ -376,13 +376,15 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   #round
   scen.top[,c(3:4)]= round(scen.top[,c(3:4)],8) 
   scen.top[,c(5:9)]= round(scen.top[,c(5:9)],2) 
-  scen.top[,c(10:11)]<- round(as.numeric(scen.top[,c(10:11)]),0)
+  if(pm.ind==1) scen.top[,c(10:11)]<- round(as.numeric(scen.top[,c(10:11)]),5)
+  if(pm.ind==4) scen.top[,c(10:11)]<- round(as.numeric(scen.top[,c(10:11)]),0)
   colnames(scen.top)[3:ncol(scen.top)]<- c("d_time","d_temp","r_mag","r_breadth","Tp", "Tr", "scale","sse","AIC","BIC")
   
   out[,c(3:4)]<- round(as.numeric(unlist(out[,c(3:4)])), 8)
-  out[,c(5:10)]<- round(as.numeric(unlist(out[,c(5:10)])), 2)
+  out[,c(5:9)]<- round(as.numeric(unlist(out[,c(5:9)])), 2)
+  if(pm.ind==1) out[,c(10,14)]<- round(as.numeric(unlist(out[,c(10,14)])), 5)
+  if(pm.ind==4) out[,c(10,14)]<- round(as.numeric(unlist(out[,c(10,14)])), 0)
   out[,c(11:13)]<- round(as.numeric(unlist(out[,c(11:13)])), 0)
-  out[,c(14)]<- round(as.numeric(unlist(out[,c(14)])), 2)
    
   #save output
   if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")

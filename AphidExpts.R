@@ -11,7 +11,7 @@ library(TrenchR)
 library(zoo)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #Analysis for English grain aphid, Sitobion avenae
 
