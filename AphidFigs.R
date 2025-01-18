@@ -164,23 +164,28 @@ perf.nodamage<- function(pm, series,scale)  {
 
 #===================
 #Fig 1. TPCs, model repair, damage
-#Fig 2. model time series
+#Fig 3. model time series
 
 # in Fig 1_Conceptual
 #===================
-#Fig 3. Temperature schematic
+#Fig 2. Temperature schematic
 #Expt 1: vary min
 #Expt 2: vary max
 #Expt 3: vary variance (expt 3, mild means)
 #Expt 4: vary means and variance (expt 3, high means)
 
+elabs<- c("expt 1. vary min", "expt 2. vary max", "expt 3. vary fluctuations", "expt 4. vary mean and fluctuations", "expt 5. hot days", "expt 6. adult heatwaves", "expt 7. nymphal heatwaves")
+
 for(expt in 1:4){
- elab<- paste("expt",expt,sep=" ")
+ elab<- elabs[expt]
  temps.all$treatment[temps.all$expt==3]<- gsub("22_","", temps.all$treatment[temps.all$expt==3])
  
-tplot= ggplot(data=temps.all[temps.all$expt %in% expt,], aes(x=time, y =temp, color=factor(treatment)))+geom_line(lwd=1.5)+ xlim(0,40)+
+tplot= ggplot(data=temps.all[temps.all$expt %in% expt,], aes(x=time, y =temp, color=factor(treatment)))+
+  annotate("rect", xmin = 0, xmax = 6, ymin = -Inf, ymax = Inf, alpha = .3)+
+  annotate("rect", xmin = 22, xmax = 30, ymin = -Inf, ymax = Inf, alpha = .3)+
+  geom_line(lwd=1.5)+ xlim(0,40)+ylim(8,40)+
     theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+labs(color="treatment")+
-  labs(title=elab, color="treatment (°C)")+xlab("time (hour)")+ylab("temperature")
+  labs(title=elab, color="treatment (°C)")+xlab("Time (hour)")+ylab("Temperature (°C)")
 
 if(expt==1) tplot.e1<- tplot
 if(expt==2) tplot.e2<- tplot
@@ -189,16 +194,16 @@ if(expt==4) tplot.e4<- tplot
 }
 
 #-------------
-#Expt 5: vary duration of heatwave (expt 2)
+#Expt 5: vary duration of heatwave
 trt<- expand.grid(hd=1:3, nd=1:3, first= 1) #first: 1 is n, 2 is h
-temps<- matrix(1, nrow=nrow(trt), ncol=8)
+temps<- matrix(1, nrow=nrow(trt), ncol=9)
 temps= as.data.frame(cbind(trt, temps))
 
 build.temps<- function(x){
   x[1]<- as.numeric(x[1]); x[2]<- as.numeric(x[2])
-  if(x[3]==1) ts<- rep(c(rep("normal", x[2]), rep("hot", x[1])), ceiling(8/(x[1]+x[2])))
-  if(x[3]==2) ts<- rep(c(rep("hot", x[1]), rep("normal", x[2])), ceiling(8/(x[1]+x[2])))
-  return(ts[1:8])
+  if(x[3]==1) ts<- rep(c(rep("normal", x[2]), rep("hot", x[1])), ceiling(9/(x[1]+x[2])))
+  if(x[3]==2) ts<- rep(c(rep("hot", x[1]), rep("normal", x[2])), ceiling(9/(x[1]+x[2])))
+  return(ts[1:9])
 }
 
 #set up temperatures  
@@ -210,16 +215,16 @@ temps.l<- melt(temps, id.vars = c("hd","nd","first"), variable.name = "day")
 temps.l$treat<- paste(temps.l$hd, temps.l$nd, sep="_")
 temps.l$treat.nh<- paste(temps.l$hd, temps.l$nd, temps.l$first, sep="_")
 temps.l$day<-as.numeric(temps.l$day)
-temps.l$elab<- paste("expt",temps.l$expt,sep=" ")
+temps.l$elab<- elabs[5]
 
 #plot
 tplot.e5<- ggplot(temps.l, aes(x = day, y = treat.nh, fill=factor(value))) +
-  geom_tile()+labs(title="expt 5", fill="day type")+
-  theme_bw(base_size=16)+theme(legend.position = "right")+ylab("treatment")
+  geom_tile()+labs(title="expt 5. hot days", fill="day type")+
+  theme_bw(base_size=16)+theme(legend.position = "right")+ylab("Treatment")+xlab("Day")
 
 #-------------
-#Expt 6: vary length of heatwave and timing (expt 5 adult)
-#Expt 7: vary length of heatwave and timing (expt 5 nymph)
+#Expt 6: vary length of heatwave and timing 
+#Expt 7: vary length of heatwave and timing 
 t6<- as.data.frame(matrix("normal", 20, 12))
 colnames(t6)<- c("AE1","AE2","AE3","AE4","AE5","AE6","NL1","NL2","NL3","NL4","NL5","NL6")
 t6$day<- 1:20
@@ -245,14 +250,15 @@ t6.l$treatment= factor(t6.l$treatment, ordered=TRUE,
   levels=c("NL6","NL5","NL4","NL3","NL2","NL1","AE1","AE2","AE3","AE4","AE5","AE6"))
 
 tplot.e6<- ggplot(t6.l, aes(x = day, y = treatment, fill=factor(value))) +
-  geom_tile()+labs(title="expts 6 & 7", fill="day type")+
-  theme_bw(base_size=16)+theme(legend.position = "right")+xlim(0.5,16.5)
+  geom_tile()+labs(title="expts 6 & 7. heat waves", fill="day type")+
+  theme_bw(base_size=16)+theme(legend.position = "right")+xlim(0.5,16.5)+
+  ylab("Treatment")+xlab("Day")
 
 #write out plot
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
 if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
 
-pdf("Fig3_temps.pdf",height = 10, width = 12)
+pdf("Fig2_temps.pdf",height = 10, width = 12)
 print( tplot.e1+tplot.e2+tplot.e3+tplot.e4+tplot.e5+tplot.e6+
          plot_layout(ncol=2) ) #+ plot_annotation(tag_levels = 'A')
 dev.off()
@@ -285,26 +291,35 @@ if(expt>1) d1.all<- rbind(d1.all, d1)
 #plot
 d1$metric <- revalue(d1$metric, c("perf.nd" = "performance no damage", "perf" = "performance with damage"))
 d1$metric <- factor(d1$metric, ordered=TRUE, levels=c("performance no damage", "performance with damage"))
-elab= paste("expt",expt,sep=" ")
+elab= elabs[expt]
 
-#plot days 7 to 11
+#plot 2 days 
 d1$treatment <- factor(d1$treatment)
-pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric))+geom_line(lwd=1.5)+xlim(216,312)+
+pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric))+
+  annotate("rect", xmin = 238, xmax = 246, ymin = -Inf, ymax = Inf, alpha = .3)+
+  annotate("rect", xmin = 262, xmax = 270, ymin = -Inf, ymax = Inf, alpha = .3)+
+  geom_line(lwd=1.5)+xlim(230,278)+ylim(0,60)+
   theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+
-  labs(color="treatment", title=elab)+guides(lty ="none")+ylab("fecundity")+xlab("time (hour)")
+  labs(color="treatment", title=elab)+guides(lty ="none")+ylab("Fecundity (nymphs/adult)")+xlab("Time (hour)")
 
 #for adult heatwaves, plot later period
 #account for 20 minute data
 if(expt==6){
-  pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric))+geom_line(lwd=1.5)+xlim(216,312)+
+  pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric))+
+    annotate("rect", xmin = 238, xmax = 246, ymin = -Inf, ymax = Inf, alpha = .3)+
+    annotate("rect", xmin = 262, xmax = 270, ymin = -Inf, ymax = Inf, alpha = .3)+
+    geom_line(lwd=1.5)+xlim(230,278)+
     theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+
-    labs(color="treatment", title=elab)+guides(lty ="none")+ylab("fecundity")+xlab("time (hour)")
+    labs(color="treatment", title=elab)+guides(lty ="none")+ylab("Fecundity (nymphs/adult)")+xlab("Time (hour)")
 }
 
 if(expt==7){
-  pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric))+geom_line(lwd=1.5)+xlim(24,120)+
+  pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric))+
+    annotate("rect", xmin = 118, xmax = 126, ymin = -Inf, ymax = Inf, alpha = .3)+
+    annotate("rect", xmin = 142, xmax = 150, ymin = -Inf, ymax = Inf, alpha = .3)+
+    geom_line(lwd=1.5)+xlim(112,160)+
     theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+
-    labs(color="treatment", title=elab)+guides(lty ="none")+ylab("fecundity")+xlab("time (hour)")
+    labs(color="treatment", title=elab)+guides(lty ="none")+ylab("Fecundity (nymphs/adult)")+xlab("Time (hour)")
 }
 
 if(expt==1) pplot.e1<- pplot
@@ -319,7 +334,7 @@ if(expt==7) pplot.e7<- pplot
 #write out plot
 pdf("Fig4_performance.pdf",height = 12, width = 12)
 print( pplot.e1+pplot.e2+pplot.e3+pplot.e4+pplot.e5+pplot.e6+pplot.e7+
-         plot_layout(ncol=2) ) #+ plot_annotation(tag_levels = 'A')
+         plot_layout(ncol=2, axis_titles = "collect") ) #+ plot_annotation(tag_levels = 'A')
 dev.off()
 
 #===================
@@ -339,7 +354,7 @@ fdat<- fecs[,c("metric","treatment", "value","expt")]
 fdat<- aggregate(.~metric+treatment+expt, fdat, mean)
 d1.agg<- d1.agg[,c("metric","treatment", "value","expt")]
 d1.agg<- rbind(d1.agg, fdat)
-d1.agg$elab<- paste("expt",d1.agg$expt,sep=" ")
+d1.agg$elab<- elabs[d1.agg$expt]
 
 #rename metrics
 metrs<- c("fecundity","perf","perf.nd")
@@ -380,12 +395,12 @@ if(expt==5){
   }
 
 #plot
-xlabs<-c("Tmin (°C)","Tmax (°C)","Tvar (°C)","Tmean (°C)","# normal days","heatwave length", "heatwave length")  
+xlabs<-c("Tmin (°C)","Tmax (°C)","Tvar (°C)","Tmean (°C)","# normal days","Heatwave length", "Heatwave length")  
   
 fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, group=metric))+
   geom_point(size=2)+geom_line(lwd=1.5)+
   theme_bw(base_size=16) +theme(legend.position = "none")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))+
-  labs(title=d1.agg.e$elab)+ylab("fecundity")+xlab(xlabs[expt])
+  labs(title=d1.agg.e$elab)+ylab("Fecundity (nymphs/adult)")+xlab(xlabs[expt])+ylim(0,45)
 
 if(expt==4){
   d1.agg.e$tmet<- paste(d1.agg.e$metric, d1.agg.e$tvar, sep="_")
@@ -393,16 +408,16 @@ if(expt==4){
     geom_point(size=2)+geom_line(lwd=1.5)+
     theme_bw(base_size=16) +theme(legend.position = c(0.9,0.7),legend.background=element_blank())+
     scale_color_brewer(palette="Dark2")+guides(colour ="none")+
-    labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("fecundity")+xlab(xlabs[expt])
+    labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("Fecundity (nymphs/adult)")+xlab(xlabs[expt])+ylim(0,45)
 }
 
 if(expt==5){
   d1.agg.e$tmet<- paste(d1.agg.e$metric, d1.agg.e$hotdays, sep="_")
   fplot= ggplot(data=d1.agg.e, aes(x=normaldays, y =value, color=metric, group=tmet, lty=hotdays))+
     geom_point(size=2)+geom_line(lwd=1.5)+
-    theme_bw(base_size=16) +theme(legend.position = c(0.15,0.7),legend.background=element_blank())+
+    theme_bw(base_size=16) +theme(legend.position = c(0.15,0.6),legend.background=element_blank())+
     scale_color_brewer(palette="Dark2")+guides(colour = "none")+
-    labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("fecundity")+xlab(xlabs[expt])
+    labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("Fecundity (nymphs/adult)")+xlab(xlabs[expt])+ylim(0,45)
 }
 
 if(expt==1) fplot.e1<- fplot
@@ -417,7 +432,7 @@ if(expt==7) fplot.e7<- fplot
 #write out plot
 pdf("Fig5_fecundity.pdf",height = 10, width = 10)
 print( fplot.e1+fplot.e2+fplot.e3+fplot.e4+fplot.e5+fplot.e6+fplot.e7+lplot+
-         plot_layout(ncol=2) ) #+ plot_annotation(tag_levels = 'A')
+         plot_layout(ncol=2, axis_titles = "collect") ) #+ plot_annotation(tag_levels = 'A')
 dev.off()
 
 #===================
@@ -467,7 +482,7 @@ fdat<- fecs[,c("metric","treatment", "value","expt")]
 fdat<- aggregate(.~metric+treatment+expt, fdat, mean)
 d1.agg<- d1.agg[,c("metric","treatment", "value","expt")]
 d1.agg<- rbind(d1.agg, fdat)
-d1.agg$elab<- paste("expt",d1.agg$expt,sep=" ")
+d1.agg$elab<- elabs[d1.agg$expt]
 
 #rename metrics
 metrs<- c("dev_rate","perf","perf.nd")
@@ -512,14 +527,14 @@ for(expt in c(1:5,7)){
   fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, group=metric))+
     geom_point(size=2)+geom_line(lwd=1.5)+
     theme_bw(base_size=16) +theme(legend.position = "none")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))+
-    labs(title=d1.agg.e$elab)+ylab("development rate (1/day)")+xlab(xlabs[expt])
+    labs(title=d1.agg.e$elab)+ylab("Development rate (1/day)")+xlab(xlabs[expt]) #+ylim(0,0.21)
   
   if(expt==4){
     d1.agg.e$tmet<- paste(d1.agg.e$metric, d1.agg.e$tvar, sep="_")
     fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, lty=factor(tvar), group=tmet))+
       geom_point(size=2)+geom_line(lwd=1.5)+
       theme_bw(base_size=16) +theme(legend.position = c(0.9,0.70),legend.background=element_blank())+scale_color_brewer(palette="Dark2")+guides(colour ="none")+
-      labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("development rate (1/day)")+xlab(xlabs[expt])
+      labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("Development rate (1/day)")+xlab(xlabs[expt])#+ylim(0,0.21)
   }
   
   if(expt==5){
@@ -527,7 +542,7 @@ for(expt in c(1:5,7)){
     fplot= ggplot(data=d1.agg.e, aes(x=normaldays, y =value, color=metric, group=tmet, lty=hotdays))+
       geom_point(size=2)+geom_line(lwd=1.5)+
       theme_bw(base_size=16) +theme(legend.position = c(0.15,0.70),legend.background=element_blank())+scale_color_brewer(palette="Dark2")+guides(colour = "none")+
-      labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("development rate (1/day)")+xlab(xlabs[expt])
+      labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("Development rate (1/day)")+xlab(xlabs[expt])#+ylim(0,0.21)
   }
   
   if(expt==1) fplot.e1<- fplot
@@ -541,5 +556,5 @@ for(expt in c(1:5,7)){
 #write out plot
 pdf("Fig6_dev_rate.pdf",height = 10, width = 10)
 print( fplot.e1+fplot.e2+fplot.e3+fplot.e4+fplot.e5+fplot.e7+lplot+
-         plot_layout(ncol=2) ) #+ plot_annotation(tag_levels = 'A')
+         plot_layout(ncol=2, axis_titles = "collect") ) #+ plot_annotation(tag_levels = 'A')
 dev.off()

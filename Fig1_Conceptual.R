@@ -240,15 +240,15 @@ pdat$c1<- as.numeric(pdat$c1); pdat$c2<- as.numeric(pdat$c2); pdat$c3<- as.numer
 
 f.fig<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=temp, y =value, group=group))+
      geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+ 
-     ylab("Performance")+xlab("Temperature (C)") 
+     ylab("Performance")+xlab("Temperature (°C)") 
 
 if(pm.ind==1) {dr.fig<-f.fig; dr.fig= dr.fig+ylab("Development Rate (1/days)")}
-if(pm.ind==4) {fec.fig<-f.fig; fec.fig= fec.fig+ylab("Fecundity") }
+if(pm.ind==4) {fec.fig<-f.fig; fec.fig= fec.fig+ylab("Fecundity (nymphs/adult)") }
 
 #damage
 d.fig= ggplot(data=pdat[which(pdat$type=="damage"),], aes(x=temp, y =value, color=factor(c1), lty=factor(c2), group=group))+
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
-  ylab("Damage (proportion)") +xlab("Temperature (C)")+ 
+  ylab("Damage (proportion)") +xlab("Temperature (°C)")+ 
   scale_colour_brewer(palette = "Dark2") +
   theme(legend.position = "bottom",  legend.box = 'vertical')+
   labs(colour="d_time", lty="d_temp")
@@ -256,7 +256,7 @@ d.fig= ggplot(data=pdat[which(pdat$type=="damage"),], aes(x=temp, y =value, colo
 #repair
 r.fig= ggplot(data=pdat[which(pdat$type=="repair"),], aes(x=temp, y =value, color=factor(c3), lty=factor(c4), group=group))+
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
-  ylab("Repair (proportion)") +xlab("Temperature (C)")+ 
+  ylab("Repair (proportion)") +xlab("Temperature (°C)")+ 
   scale_colour_brewer(palette = "Dark2") +
   theme(legend.position = "bottom",  legend.box = 'vertical')+
   labs(colour="r_mag", lty="r_breadth")
@@ -265,7 +265,10 @@ r.fig= ggplot(data=pdat[which(pdat$type=="repair"),], aes(x=temp, y =value, colo
 #Plot time series
 
 #plot temps and performance without damage
-ts<- temps
+#ts<- temps.all[which(temps.all$expt==6 & temps.all$treatment=="AE6"),"temp"]
+ts<- temps.all[which(temps.all$expt==1 & temps.all$treatment=="13"),"temp"]
+ts<- ts[1:100]
+
 #ts<- as.data.frame(cbind(time=1:length(temps), temp=temps, performance=p1.nd))
 #to long format
 #ts.l= gather(ts, time, temp:performance, factor_key=TRUE)
@@ -291,21 +294,36 @@ pdat$c1<- as.numeric(pdat$c1); pdat$c2<- as.numeric(pdat$c2); pdat$c3<- as.numer
 #-------------
 #temp
 t.fig.ts<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=time, y =temp))+
+  annotate("rect", xmin = 0, xmax = 6, ymin = -Inf, ymax = Inf, alpha = .3)+
+  annotate("rect", xmin = 22, xmax = 30, ymin = -Inf, ymax = Inf, alpha = .3)+
+  annotate("rect", xmin = 46, xmax = 54, ymin = -Inf, ymax = Inf, alpha = .3)+
+  annotate("rect", xmin = 70, xmax = 78, ymin = -Inf, ymax = Inf, alpha = .3)+
+  xlim(12,84)+
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
-  ylab("Temperature")+
+  ylab("Temperature (°C)")+xlab("Time (hour)")+
   scale_colour_brewer(palette = "Dark2") +theme(legend.position = "bottom")
 
 #performance without repair
 f.fig.ts<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=time, y =value, color=factor(c1), lty=factor(c2), group=group))+
+  annotate("rect", xmin = 0, xmax = 6, ymin = -Inf, ymax = Inf, alpha = .3)+
+  annotate("rect", xmin = 22, xmax = 30, ymin = -Inf, ymax = Inf, alpha = .3)+
+  annotate("rect", xmin = 46, xmax = 54, ymin = -Inf, ymax = Inf, alpha = .3)+
+  annotate("rect", xmin = 70, xmax = 78, ymin = -Inf, ymax = Inf, alpha = .3)+
+  xlim(12,84)+
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
-  ylab("Performance")+
+  ylab("Fecundity (nymphs/adult)")+xlab("Time (hour)")+
   scale_colour_brewer(palette = "Dark2") +theme(legend.position = "bottom")+
   labs(colour="d_time", lty="d_temp")
 
 #add repair
 pr.fig.ts<- ggplot(data=pdat[which(pdat$type=="perf repair"),], aes(x=time, y =value, color=factor(c3), lty=factor(c4), group=group))+
+  annotate("rect", xmin = 0, xmax = 6, ymin = -Inf, ymax = Inf, alpha = .3)+
+  annotate("rect", xmin = 22, xmax = 30, ymin = -Inf, ymax = Inf, alpha = .3)+
+  annotate("rect", xmin = 46, xmax = 54, ymin = -Inf, ymax = Inf, alpha = .3)+
+  annotate("rect", xmin = 70, xmax = 78, ymin = -Inf, ymax = Inf, alpha = .3)+
+  xlim(12,84)+
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
-  ylab("Performance")+
+  ylab("Fecundity (nymphs/adult)")+xlab("Time (hour)")+
   scale_colour_brewer(palette = "Dark2") +theme(legend.position = "bottom")+
   labs(colour="r_mag", lty="r_breadth")
 
@@ -328,7 +346,7 @@ pdf("Fig1_Function.pdf",height = 9, width = 9)
  plot_annotation(tag_levels = 'A')
 dev.off()
 
-pdf("Fig2_Function.pdf",height = 9, width = 9)
+pdf("Fig3_Function.pdf",height = 9, width = 9)
   t.fig.ts +f.fig.ts +pr.fig.ts +
   plot_layout(design = layout) + plot_annotation(tag_levels = 'A')
 dev.off()
