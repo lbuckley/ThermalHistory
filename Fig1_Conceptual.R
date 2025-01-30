@@ -15,7 +15,7 @@ tp1=0.9
 pm.ind=4 #run also pm.ind=1
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -178,7 +178,7 @@ if(pm.ind==1){
     Tdif[which(Tdif<0)]<- 0
     
     dur=3 #use dur=3
-    damage.p1<- c1*dur*ifelse(Tdif[i]>0, 1, 0)+c2*Tdif[i]
+    damage.p1<- c1*dur*ifelse(Tdif>0, 1, 0)+c2*Tdif
     damage.p1= damage.p + damage.p1
     damage.p1[which(damage.p1<0)]<-0
     damage.p1[which(damage.p1>1)]<-1
@@ -194,7 +194,7 @@ if(pm.ind==4){
     Tdif[which(Tdif<0)]<- 0
     
     dur=3 #use dur=3
-    damage.p1<- c1*dur*ifelse(Tdif[i]>0, 1, 0)+c2*Tdif[i]
+    damage.p1<- c1*dur*ifelse(Tdif>0, 1, 0)+c2*Tdif
     damage.p1= damage.p + damage.p1
     damage.p1[which(damage.p1<0)]<-0
     damage.p1[which(damage.p1>1)]<-1
@@ -242,8 +242,28 @@ f.fig<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=temp, y =value, 
      geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+ 
      ylab("Performance")+xlab("Temperature (°C)") 
 
+#find Topt and CTmax
+ts=seq(0,40,0.1)
+ft<- fec(ts)
+topt<- ts[which.max(ft)]
+topt.p<- max(ft)
+ctmax= ts[which(ft[120:length(ft)]==0)[1]+120]
+
+tc= topt + 0.9*(ctmax-topt)
+
+if(pm.ind==4){
+  f.fig<- f.fig + geom_point(size=3, aes(x=topt, y =topt.p)) + geom_point(size=3, aes(x=ctmax, y =0))+
+    annotate("text", size=6, x = 23, y=topt.p, label = "Topt")+
+    annotate("text", size=6, x = 34, y=2, label = "Tmax")+
+    geom_segment(aes(x = topt, y = 0, xend = ctmax, yend = 0), linetype="dashed", size=1.25)+
+    annotate("text", size=6, x = 28, y=2, label = "c")+
+    geom_point(size=3, aes(x=tc, y =fec(tc) ))+
+    annotate("text", size=6, x = 32, y=fec(tc), label = "Tc")+
+    geom_segment(aes(x = tc, y = -1, xend = tc, yend = 1), linetype="dashed", size=1.25)
+}
+
 if(pm.ind==1) {dr.fig<-f.fig; dr.fig= dr.fig+ylab("Development Rate (1/days)")}
-if(pm.ind==4) {fec.fig<-f.fig; fec.fig= fec.fig+ylab("Fecundity (nymphs/adult)") }
+if(pm.ind==4) {fec.fig<-f.fig; fec.fig= fec.fig+ylab("Fecundity (nymphs per adult)") }
 
 #damage
 d.fig= ggplot(data=pdat[which(pdat$type=="damage"),], aes(x=temp, y =value, color=factor(c1), lty=factor(c2), group=group))+
@@ -251,7 +271,7 @@ d.fig= ggplot(data=pdat[which(pdat$type=="damage"),], aes(x=temp, y =value, colo
   ylab("Damage (proportion)") +xlab("Temperature (°C)")+ 
   scale_colour_brewer(palette = "Dark2") +
   theme(legend.position = "bottom",  legend.box = 'vertical')+
-  labs(colour="d_time", lty="d_temp")
+  labs(colour= expression(d[time]), lty=expression(d[temp]) )
 
 #repair
 r.fig= ggplot(data=pdat[which(pdat$type=="repair"),], aes(x=temp, y =value, color=factor(c3), lty=factor(c4), group=group))+
@@ -259,7 +279,7 @@ r.fig= ggplot(data=pdat[which(pdat$type=="repair"),], aes(x=temp, y =value, colo
   ylab("Repair (proportion)") +xlab("Temperature (°C)")+ 
   scale_colour_brewer(palette = "Dark2") +
   theme(legend.position = "bottom",  legend.box = 'vertical')+
-  labs(colour="r_mag", lty="r_breadth")
+  labs(colour=expression(r[mag]), lty=expression(r[breadth]))
   
 #========================
 #Plot time series
@@ -311,9 +331,9 @@ f.fig.ts<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=time, y =valu
   annotate("rect", xmin = 70, xmax = 78, ymin = -Inf, ymax = Inf, alpha = .3)+
   xlim(12,84)+
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
-  ylab("Fecundity (nymphs/adult)")+xlab("Time (hour)")+
+  ylab("Performance")+xlab("Time (hour)")+
   scale_colour_brewer(palette = "Dark2") +theme(legend.position = "bottom")+
-  labs(colour="d_time", lty="d_temp")
+  labs(colour=expression(d[time]), lty=expression(d[temp]))
 
 #add repair
 pr.fig.ts<- ggplot(data=pdat[which(pdat$type=="perf repair"),], aes(x=time, y =value, color=factor(c3), lty=factor(c4), group=group))+
@@ -323,9 +343,9 @@ pr.fig.ts<- ggplot(data=pdat[which(pdat$type=="perf repair"),], aes(x=time, y =v
   annotate("rect", xmin = 70, xmax = 78, ymin = -Inf, ymax = Inf, alpha = .3)+
   xlim(12,84)+
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
-  ylab("Fecundity (nymphs/adult)")+xlab("Time (hour)")+
+  ylab("Performance")+xlab("Time (hour)")+
   scale_colour_brewer(palette = "Dark2") +theme(legend.position = "bottom")+
-  labs(colour="r_mag", lty="r_breadth")
+  labs(colour=expression(r[mag]), lty=expression(r[breadth]) )
 
   
 #---

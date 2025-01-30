@@ -13,7 +13,7 @@ library(rvmethod) #gaussian function
 library(ggpubr)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -300,7 +300,7 @@ pplot= ggplot(data=d1, aes(x=time, y =value, color=factor(treatment), lty=metric
   annotate("rect", xmin = 262, xmax = 270, ymin = -Inf, ymax = Inf, alpha = .3)+
   geom_line(lwd=1.5)+xlim(230,278)+ylim(0,60)+
   theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+
-  labs(color="treatment", title=elab)+guides(lty ="none")+ylab("Fecundity (nymphs/adult)")+xlab("Time (hour)")
+  labs(color="treatment", title=elab)+guides(lty ="none")+ylab("Performance")+xlab("Time (hour)")
 
 #for adult heatwaves, plot later period
 #account for 20 minute data
@@ -310,7 +310,7 @@ if(expt==6){
     annotate("rect", xmin = 262, xmax = 270, ymin = -Inf, ymax = Inf, alpha = .3)+
     geom_line(lwd=1.5)+xlim(230,278)+
     theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+
-    labs(color="treatment", title=elab)+guides(lty ="none")+ylab("Fecundity (nymphs/adult)")+xlab("Time (hour)")
+    labs(color="treatment", title=elab)+guides(lty ="none")+ylab("Performance")+xlab("Time (hour)")
 }
 
 if(expt==7){
@@ -319,7 +319,7 @@ if(expt==7){
     annotate("rect", xmin = 142, xmax = 150, ymin = -Inf, ymax = Inf, alpha = .3)+
     geom_line(lwd=1.5)+xlim(112,160)+
     theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_viridis(discrete = TRUE)+
-    labs(color="treatment", title=elab)+guides(lty ="none")+ylab("Fecundity (nymphs/adult)")+xlab("Time (hour)")
+    labs(color="treatment", title=elab)+guides(lty ="none")+ylab("Performance")+xlab("Time (hour)")
 }
 
 if(expt==1) pplot.e1<- pplot
@@ -400,7 +400,7 @@ xlabs<-c("Tmin (°C)","Tmax (°C)","Tvar (°C)","Tmean (°C)","# normal days","H
 fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, group=metric))+
   geom_point(size=2)+geom_line(lwd=1.5)+
   theme_bw(base_size=16) +theme(legend.position = "none")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))+
-  labs(title=d1.agg.e$elab)+ylab("Fecundity (nymphs/adult)")+xlab(xlabs[expt])+ylim(0,45)
+  labs(title=d1.agg.e$elab)+ylab("Fecundity (nymphs per adult)")+xlab(xlabs[expt])+ylim(0,45)
 
 if(expt==4){
   d1.agg.e$tmet<- paste(d1.agg.e$metric, d1.agg.e$tvar, sep="_")
@@ -408,7 +408,7 @@ if(expt==4){
     geom_point(size=2)+geom_line(lwd=1.5)+
     theme_bw(base_size=16) +theme(legend.position = c(0.9,0.7),legend.background=element_blank())+
     scale_color_brewer(palette="Dark2")+guides(colour ="none")+
-    labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("Fecundity (nymphs/adult)")+xlab(xlabs[expt])+ylim(0,45)
+    labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("Fecundity (nymphs per adult)")+xlab(xlabs[expt])+ylim(0,45)
 }
 
 if(expt==5){
@@ -417,7 +417,7 @@ if(expt==5){
     geom_point(size=2)+geom_line(lwd=1.5)+
     theme_bw(base_size=16) +theme(legend.position = c(0.15,0.6),legend.background=element_blank())+
     scale_color_brewer(palette="Dark2")+guides(colour = "none")+
-    labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("Fecundity (nymphs/adult)")+xlab(xlabs[expt])+ylim(0,45)
+    labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("Fecundity (nymphs per adult)")+xlab(xlabs[expt])+ylim(0,45)
 }
 
 if(expt==1) fplot.e1<- fplot
