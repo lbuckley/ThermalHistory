@@ -15,7 +15,7 @@ tp1=0.9
 pm.ind=4 #run also pm.ind=1
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "y"
+desktop<- "n"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -227,6 +227,10 @@ pdat<- rbind(cdat, rdat, rdat2, rdat3, rdat4, ddat, ddat2, ddat3, ddat4,
 pdat$temp<- as.numeric(pdat$temp); pdat$value<- as.numeric(pdat$value);
 pdat$c1<- as.numeric(pdat$c1); pdat$c2<- as.numeric(pdat$c2); pdat$c3<- as.numeric(pdat$c3); pdat$c4<- as.numeric(pdat$c4)
 
+#ditch scientific notation
+pdat$c1= format(pdat$c1, scientific = FALSE)
+pdat$c2= format(pdat$c2, scientific = FALSE)
+
 #-------
 #plot
 
@@ -310,6 +314,10 @@ ddat4<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, 
 pdat<- rbind(ddat, ddat2, ddat3, ddat4, fdat0, fdat, fdat2, fdat3, fdat4)
 pdat$time<- as.numeric(pdat$time); pdat$temp<- as.numeric(pdat$temp); pdat$value<- as.numeric(pdat$value);
 pdat$c1<- as.numeric(pdat$c1); pdat$c2<- as.numeric(pdat$c2); pdat$c3<- as.numeric(pdat$c3); pdat$c4<- as.numeric(pdat$c4)
+
+#ditch scientific notation
+pdat$c1= format(pdat$c1, scientific = FALSE)
+pdat$c2= format(pdat$c2, scientific = FALSE)
 
 #-------------
 #temp
