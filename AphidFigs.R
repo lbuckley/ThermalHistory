@@ -11,9 +11,10 @@ library(pracma)				# contains sigmoid function
 library(TrenchR)
 library(rvmethod) #gaussian function
 library(ggpubr)
+library(scico)
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -388,12 +389,16 @@ if(expt==5){
   #put other first in supplement
   d1.agg.e= d1.agg.e[d1.agg.e$first==1,]
 }
-  
+
+#make color pallete
+#colors= scico(5, palette="batlow")[c(2:4)] 
+colors= viridis(5, option="mako")[c(2:4)]
+    
 #get legend
   if(expt==1){
     fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, group=metric))+
       geom_point(size=2)+geom_line(lwd=1.25)+
-      theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))
+      theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_manual(values=colors)+guides(colour = guide_legend(nrow = 3))
     
     # Extract the legend. Returns a gtable
     leg <- get_legend(fplot)
@@ -404,10 +409,10 @@ if(expt==5){
 
 #plot
 xlabs<-c("Tmin (°C)","Tmax (°C)","Tvar (°C)","Tmean (°C)","# normal days","Heatwave length", "Heatwave length")  
-  
+
 fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, group=metric))+
   geom_point(size=2)+geom_line(lwd=1.25)+
-  theme_bw(base_size=16) +theme(legend.position = "none")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))+
+  theme_bw(base_size=16) +theme(legend.position = "none")+scale_color_manual(values=colors)+guides(colour = guide_legend(nrow = 3))+
   labs(title=d1.agg.e$elab)+ylab("Fecundity (nymphs per adult)")+xlab(xlabs[expt])+ylim(0,45)
 
 #add observed error bars
@@ -419,7 +424,7 @@ if(expt==4){
   fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, lty=factor(tvar), group=tmet))+
     geom_point(size=2)+geom_line(lwd=1.25)+
     theme_bw(base_size=16) +theme(legend.position = c(0.9,0.7),legend.background=element_blank())+
-    scale_color_brewer(palette="Dark2")+guides(colour ="none")+
+    scale_color_manual(values=colors)+guides(colour ="none")+
     labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("Fecundity (nymphs per adult)")+xlab(xlabs[expt])+ylim(0,45)
 
   #add observed error bars
@@ -433,7 +438,7 @@ if(expt==5){
   fplot= ggplot(data=d1.agg.e, aes(x=normaldays, y =value, color=metric, group=tmet, lty=hotdays))+
     geom_point(size=2)+geom_line(lwd=1.25)+
     theme_bw(base_size=16) +theme(legend.position = c(0.15,0.6),legend.background=element_blank())+
-    scale_color_brewer(palette="Dark2")+guides(colour = "none")+
+    scale_color_manual(values=colors)+guides(colour = "none")+
     labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("Fecundity (nymphs per adult)")+xlab(xlabs[expt])+ylim(0,45)
 
   #add observed error bars
@@ -460,6 +465,7 @@ dev.off()
 
 #===================
 #Fig 6. Development comparison
+elabs<- c("A) expt 1. vary min", "B) expt 2. vary max", "C) expt 3. vary fluctuations", "D) expt 4. vary mean and fluctuations", "E) expt 5. hot days", "F) expt 6. adult heatwaves", "F) expt 7. nymphal heatwaves")
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
@@ -542,7 +548,7 @@ for(expt in c(1:5,7)){
   if(expt==1){
     fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, group=metric))+
       geom_point(size=2)+geom_line(lwd=1.25)+
-      theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))
+      theme_bw(base_size=16) +theme(legend.position = "right")+scale_color_manual(values=colors)+guides(colour = guide_legend(nrow = 3))
     
     # Extract the legend. Returns a gtable
     leg <- get_legend(fplot)
@@ -556,7 +562,7 @@ for(expt in c(1:5,7)){
   
   fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, group=metric))+
     geom_point(size=2)+geom_line(lwd=1.25)+
-    theme_bw(base_size=16) +theme(legend.position = "none")+scale_color_brewer(palette="Dark2")+guides(colour = guide_legend(nrow = 3))+
+    theme_bw(base_size=16) +theme(legend.position = "none")+scale_color_manual(values=colors)+guides(colour = guide_legend(nrow = 3))+
     labs(title=d1.agg.e$elab)+ylab("Development rate (1/day)")+xlab(xlabs[expt]) #+ylim(0,0.21)
   
   #add observed error bars
@@ -567,7 +573,8 @@ for(expt in c(1:5,7)){
     d1.agg.e$tmet<- paste(d1.agg.e$metric, d1.agg.e$tvar, sep="_")
     fplot= ggplot(data=d1.agg.e, aes(x=treatment, y =value, color=metric, lty=factor(tvar), group=tmet))+
       geom_point(size=2)+geom_line(lwd=1.25)+
-      theme_bw(base_size=16) +theme(legend.position = c(0.15,0.3),legend.background=element_blank())+scale_color_brewer(palette="Dark2")+guides(colour ="none")+
+      theme_bw(base_size=16) +theme(legend.position = c(0.15,0.3),legend.background=element_blank())+
+      scale_color_manual(values=colors)+guides(colour ="none")+
       labs(title=d1.agg.e$elab, lty ="Tvar (°C)")+ylab("Development rate (1/day)")+xlab(xlabs[expt])#+ylim(0,0.21)
     
     #add observed error bars
@@ -579,7 +586,8 @@ for(expt in c(1:5,7)){
     d1.agg.e$tmet<- paste(d1.agg.e$metric, d1.agg.e$hotdays, sep="_")
     fplot= ggplot(data=d1.agg.e, aes(x=normaldays, y =value, color=metric, group=tmet, lty=hotdays))+
       geom_point(size=2)+geom_line(lwd=1.25)+
-      theme_bw(base_size=16) +theme(legend.position = c(0.15,0.70),legend.background=element_blank())+scale_color_brewer(palette="Dark2")+guides(colour = "none")+
+      theme_bw(base_size=16) +theme(legend.position = c(0.15,0.70),legend.background=element_blank())+
+      scale_color_manual(values=colors)+guides(colour = "none")+
       labs(title=d1.agg.e$elab, lty ="# hot days")+ylab("Development rate (1/day)")+xlab(xlabs[expt])#+ylim(0,0.21)
   
     #add observed error bars

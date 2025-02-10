@@ -15,7 +15,7 @@ tp1=0.9
 pm.ind=4 #run also pm.ind=1
 
 #toggle between desktop (y) and laptop (n)
-desktop<- "n"
+desktop<- "y"
 
 #FIT FUNCTION 
 if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
@@ -269,11 +269,15 @@ if(pm.ind==4){
 if(pm.ind==1) {dr.fig<-f.fig; dr.fig= dr.fig+ylab("Development Rate (1/days)")}
 if(pm.ind==4) {fec.fig<-f.fig; fec.fig= fec.fig+ylab("Fecundity (nymphs per adult)") }
 
+#make color pallete
+#colors= scico(5, palette="batlow")[c(2:4)] 
+colors= viridis(5, option="mako")[c(2:4)]
+
 #damage
 d.fig= ggplot(data=pdat[which(pdat$type=="damage"),], aes(x=temp, y =value, color=factor(c1), lty=factor(c2), group=group))+
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
   ylab("Damage (proportion)") +xlab("Temperature (°C)")+ 
-  scale_colour_brewer(palette = "Dark2") +
+  scale_colour_manual(values=colors) +
   theme(legend.position = "bottom",  legend.box = 'vertical')+
   labs(colour= expression(d[time]), lty=expression(d[temp]) )
 
@@ -281,7 +285,7 @@ d.fig= ggplot(data=pdat[which(pdat$type=="damage"),], aes(x=temp, y =value, colo
 r.fig= ggplot(data=pdat[which(pdat$type=="repair"),], aes(x=temp, y =value, color=factor(c3), lty=factor(c4), group=group))+
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
   ylab("Repair (proportion)") +xlab("Temperature (°C)")+ 
-  scale_colour_brewer(palette = "Dark2") +
+  scale_colour_manual(values=colors) +
   theme(legend.position = "bottom",  legend.box = 'vertical')+
   labs(colour=expression(r[mag]), lty=expression(r[breadth]))
   
@@ -340,7 +344,7 @@ f.fig.ts<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=time, y =valu
   xlim(12,84)+
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
   ylab("Performance")+xlab("Time (hour)")+
-  scale_colour_brewer(palette = "Dark2") +theme(legend.position = "bottom")+
+  scale_colour_manual(values=colors) +theme(legend.position = "bottom")+
   labs(colour=expression(d[time]), lty=expression(d[temp]))
 
 #add repair
@@ -352,7 +356,7 @@ pr.fig.ts<- ggplot(data=pdat[which(pdat$type=="perf repair"),], aes(x=time, y =v
   xlim(12,84)+
   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+
   ylab("Performance")+xlab("Time (hour)")+
-  scale_colour_brewer(palette = "Dark2") +theme(legend.position = "bottom")+
+  scale_colour_manual(values=colors) +theme(legend.position = "bottom")+
   labs(colour=expression(r[mag]), lty=expression(r[breadth]) )
 
   
