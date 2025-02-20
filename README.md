@@ -1,9 +1,3 @@
----
-editor_options: 
-  markdown: 
-    wrap: sentence
----
-
 # How damage, recovery, and repair alter the fitness impacts of thermal stress
 
 Analysis of how thermal history influences performance
