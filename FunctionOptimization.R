@@ -12,8 +12,11 @@ library(TrenchR)
 library(rvmethod) #gaussian function
 library(dfoptim)
 
-#toggle between desktop (y) and laptop (n)
-desktop<- "n"
+# Optimize parameters for thermal history function
+
+#read in temperature and fitness component data
+temps.all<- read.csv("processed_data/TempTimeSeries.csv")
+PerfDat<- read.csv("processed_data/PerformanceData.csv")
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
@@ -21,13 +24,6 @@ pms<- c("dr", "sur", "long", "fec")
 pm.ind<- 1
 #set default tp
 tp1=0.9
-
-#FIT FUNCTION 
-if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
-
-temps.all<- read.csv("TempTimeSeries.csv")
-PerfDat<- read.csv("PerformanceData.csv")
 
 #-------------
 #TPCs
@@ -112,14 +108,8 @@ ctmin= ts[which(ft>0)[1]-1]
 #set default tr
 tr1= topt
 
-# #plot
-# plot(ts, dr(ts))
-# plot(ts, sur(ts))
-# plot(ts, long(ts))
-# plot(ts, fec(ts))
-
 #--------------------
-#pm=pm.ind; T=temps.expt$temp; c1=cs[1]; c2=cs[2]; c3=cs[3]; c4=cs[4]; tp=cs[5]; scale=cs[6]
+# Functions
 
 perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp, tr=tr, scale,Topt=topt, CTmax=ctmax)  
 { 
@@ -135,8 +125,6 @@ perf.damage<- function(pm, T,c1,c2,c3,c4,tp=tp, tr=tr, scale,Topt=topt, CTmax=ct
     #damage
     dur<- dur + ifelse(Tdif[i]>0, 1, 0)
     damage.n<- c1*dur*ifelse(Tdif[i]>0, 1, 0)+c2*Tdif[i]
-    #damage.n<- 1- exp(-(c1*dur)-(c2*Tdif[i]))
-    #damage.n<- c1*exp(dur)*ifelse(Tdif[i]>0, 1, 0)+c2*exp(Tdif[i])
     
     damage= damage + damage.n
     
@@ -174,30 +162,6 @@ perf.nodamage<- function(pm, series,scale)  {
   return(perf.all)
 }
 
-#-----------
-# #plot parameter values
-# ts= seq(1, 35, 0.5)
-# temps= c(ts, rev(ts),ts, rev(ts))
-# 
-# #make parameter combinations 
-# cs<- expand.grid(c1=seq(0, 1, 0.25), c2= seq(0, .01, 0.003), c3= seq(0, 1, 0.25), c4= seq(1, 5, 1),
-#                  scale= 1 )
-# 
-# #fit values
-# #cs<- expand.grid(c1=c(1.95,2), c2= c(0.0007, 0.001), c3= c(0.25,0.66), c4= c(1.1, 1.3), scale= 0.01)
-# cs<- expand.grid(c1=c(0.01,1), c2= c(0.01,1), c3= c(0.2,0.9), c4= c(1, 3), scale= 0.01)
-# 
-# for(k in 1:nrow(cs)){
-#   p1= perf.damage(pm=pm.ind, temps, c1=cs[k,1], c2=cs[k,2], c3=cs[k,3], c4=cs[k,4], scale=cs[k,5])
-#   ps= cbind(time=1:length(temps), temps, p1, k, cs[k,])
-#   if(k==1) ps.all<- ps
-#   if(k>1) ps.all<- rbind(ps.all, ps)
-# }
-# 
-# funct.fig<- ggplot(data=ps.all, aes(x=time, y =p1, color=c3, lty=factor(c4), group=k))+
-#   geom_line()+facet_grid(c2~c1)+theme_bw()+
-#   ylab("Performance")+scale_color_viridis()
-
 #==================
 #FIT MODEL, compare AIC of different assumptions
 #extract fecundity values
@@ -218,9 +182,6 @@ opts= array(NA, dim=c(7,6,7), dimnames = list(c("e1","e2","e3","e4","e5","e6","e
 fit= array(NA, dim=c(7,6,4), dimnames = list(c("e1","e2","e3","e4","e5","e6","e7"), c("s1","s2","s3","s4", "s5", "s6"), c("sse","convergence","aic", "bic")))
 
 #----
-#x=opt$par[1:4]
-#scen=scen1; temps=tempse; fecundity=fecs; scale=scale.est; pm1=pm.ind
-
 #error function
 errs<- function(x,scen=scen1, temps=tempse, fecundity=fecs, scale=scale.est, pm1=pm.ind){  
   
@@ -279,7 +240,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   if(max(p.nd.t$fec.ratio)>1) scale.est<- max(p.nd.t$fec.ratio)
  
   #-----------
-#optimize
+#optimize scenarios
   
   #1. fit four parameters
   scen1=1
@@ -353,8 +314,7 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   expt6<- cbind(expt="6", scenario=1:6, opts[6,,], fit[6,,c(1,3:4)])
   expt7<- cbind(expt="7", scenario=1:6, opts[7,,], fit[7,,c(1,3:4)])
   
-  #best scenario
-  #scens= c(1,3,3,3,3,2,2)
+  #pick scenarios
   if(pm.ind==4) scens= c(1,1,1,1,1,1,1) #fec
   if(pm.ind==1) scens= c(1,1,1,1,1,1,1) #dev_rate
   
@@ -387,12 +347,9 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   out[,c(11:13)]<- round(as.numeric(unlist(out[,c(11:13)])), 0)
    
   #save output
-  if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-  if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
-  
-  out_file <- paste("out_", pms[pm.ind], ".csv", sep="")
+  out_file <- paste("out/out_", pms[pm.ind], ".csv", sep="")
   write.csv(out, out_file)
-  out_file <- paste("scen1_", pms[pm.ind], ".csv", sep="")
+  out_file <- paste("out/scen1_", pms[pm.ind], ".csv", sep="")
   write.csv(scen.top, out_file)
   
   

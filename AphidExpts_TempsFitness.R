@@ -10,12 +10,8 @@ library(pracma)				# contains sigmoid function
 library(TrenchR)
 library(zoo)
 
-#toggle between desktop (y) and laptop (n)
-desktop<- "n"
-
 #Analysis for English grain aphid, Sitobion avenae
-
-#Experiments
+#Processes environmental and fitness component data for the following experiments:
 #Expt 1: vary min
 #Expt 2: vary max
 #Expt 3: vary variance (expt 3, mild means)
@@ -30,13 +26,10 @@ desktop<- "n"
 #Dryad data: http://doi.org/10.5061/dryad.q2070 
 #English grain aphid, Sitobion avenae
 
-if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/")
-if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/data/aphids/")
-
-adat2.dt<- read.csv("Zhaoetal2014/Zhaoetal2014_devtime.csv")
-adat2.p<- read.csv("Zhaoetal2014/Zhaoetal2014_AdPerf.csv")
-adat2.lt<- read.csv("Zhaoetal2014/Zhaoetal2014_LifeTable.csv")
-adat2.sur<- read.csv("Zhaoetal2014/Zhaoetal2014_SurvNymph.csv")
+adat2.dt<- read.csv("data/Zhaoetal2014/Zhaoetal2014_devtime.csv")
+adat2.p<- read.csv("data/Zhaoetal2014/Zhaoetal2014_AdPerf.csv")
+adat2.lt<- read.csv("data/Zhaoetal2014/Zhaoetal2014_LifeTable.csv")
+adat2.sur<- read.csv("data/Zhaoetal2014/Zhaoetal2014_SurvNymph.csv")
 #could add survival but format unclear
 #----
 #construct temperatures
@@ -88,7 +81,6 @@ adat2.dt.m1 <- na.omit(cbind( adat2.dt$NTminN[1:132], "dev_rate", 1/adat2.dt$Nym
 colnames(adat2.dt.m1)<- c("NTmin","metric","value")
 
 #--------
-
 #combine dataframes
 obs<- adat2.p.l[,c("NTmin","metric","value")]
 obs<- rbind(obs, adat2.dt.m1)
@@ -109,8 +101,8 @@ ggplot(data=PerfDat, aes(x=treatment, y =value))+geom_point()+facet_wrap(.~metri
 #Vary daily maximum temperatures, while holding night-time temperatures constant
 
 #read data
-adat5.t<- read.csv("Maetal2015/Maetal2015_temps.csv")
-adat5.p<- read.csv("Maetal2015/Maetal2015_perf.csv")
+adat5.t<- read.csv("data/Maetal2015/Maetal2015_temps.csv")
+adat5.p<- read.csv("data/Maetal2015/Maetal2015_perf.csv")
 
 #--------------
 # construct temperatures
@@ -180,11 +172,11 @@ ggplot(data=adat5.p, aes(x=Dmax_C, y =dr))+geom_point()
 
 #read data
 #mild means
-adat4.var<- read.csv("WangMa2023/WangMa2023_temp22mean_diffvar.csv")
+adat4.var<- read.csv("data/WangMa2023/WangMa2023_temp22mean_diffvar.csv")
 #high means
-adat4.mean<- read.csv("WangMa2023/WangMa2023_diffmeans.csv")
+adat4.mean<- read.csv("data/WangMa2023/WangMa2023_diffmeans.csv")
 #popgrowth
-adat4.r<- read.csv("WangMa2023/WangMa2023_popgrowth.csv")
+adat4.r<- read.csv("data/WangMa2023/WangMa2023_popgrowth.csv")
 
 #----------
 #set up temperatures
@@ -245,11 +237,6 @@ ggplot(data=adat4.var.m, aes(x=Tvar, y =value, color=population))+geom_point()+ 
 #---------------
 #combine performance metrics
 
-# #to long format
-# r.l<- melt(adat4.r[,c("Tmean","Tvar","population","mean_Ro","mean_rm")], id.vars = c("Tmean","Tvar","population"), variable.name = "metric")
-# #add popgrowth
-# dat.mv<- rbind(adat4.var.m, r.l)
-
 #add performance data
 obs<- adat4.var.m[,c("treatment","metric","value","population")]
 obs$expt<- 3
@@ -271,9 +258,9 @@ PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population"
 #Finding: Increasing the duration of hot days in heat waves had a negative effect on various demographic rates and life-time fitness of individuals, but magnitude of this effect was typically contingent on the temporal clustering of hot periods.
 
 #load biological data
-adat3.dev<- read.csv("Maetal2017/Development.csv")
-adat3.rep<- read.csv("Maetal2017/Reproduction.csv")
-adat3.tr<- read.csv("Maetal2017/Traits.csv")
+adat3.dev<- read.csv("data/Maetal2017/Development.csv")
+adat3.rep<- read.csv("data/Maetal2017/Reproduction.csv")
+adat3.tr<- read.csv("data/Maetal2017/Traits.csv")
 
 #----
 #generate temps
@@ -330,9 +317,7 @@ temps.all<- rbind(temps.all, temps.l)
 
 #----
 #Traits
-#estimate development time
-#adat3.tr$dt= adat3.tr$X1st_instar +adat3.tr$X2ed_instar +adat3.tr$X3rd_instar +adat3.tr$X4th_instar +adat3.tr$NymphDur
-#just nymphs
+#use development time for nymphs
 adat3.tr$dt= adat3.tr$NymphDur
 
 #developmental rate
@@ -396,7 +381,7 @@ PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population"
 #Expt 6: vary length of heatwave and timing (expt 5 adult)
 #Expt 7: vary length of heatwave and timing (expt 5 nymph)
 
-#Zhao et al. The importance of timing of heat events for predicting the dynamics of aphid pest populations. Pest management science, 2019
+#Zhao et al. 2019. The importance of timing of heat events for predicting the dynamics of aphid pest populations. Pest management science
 #https://doi.org/10.1002/ps.5344, provided data
 #survival and productivity
 #Sitobion avenae 
@@ -406,8 +391,8 @@ PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population"
 #Hot day: 20–35C; Normal day: 13–28C
 
 #read data
-adat6.t<- read.csv("Zhaoetal2019/Zhaoetal2019_temps.csv")
-adat6.p<- read.csv("Zhaoetal2019/Zhaoetal2019_perf.csv")
+adat6.t<- read.csv("data/Zhaoetal2019/Zhaoetal2019_temps.csv")
+adat6.p<- read.csv("data/Zhaoetal2019/Zhaoetal2019_perf.csv")
 
 #--------------
 # construct temperatures
@@ -572,9 +557,6 @@ PerfDat<- rbind(PerfDat, obs[,c("treatment","metric","value","expt","population"
 
 #====================
 #write out data sets
-
-if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
 PerfDat$metric= as.character(PerfDat$metric)
 
 #align names
@@ -591,8 +573,8 @@ PerfDat$metric[which(PerfDat$metric=="dr")]="dev_rate"
 PerfDat<- PerfDat[which(!is.na(PerfDat$value)),]
 
 #write out
-write.csv(temps.all, "TempTimeSeries.csv")
-write.csv(PerfDat, "PerformanceData.csv")
+write.csv(temps.all, "processed_data/TempTimeSeries.csv")
+write.csv(PerfDat, "processed_data/PerformanceData.csv")
 
 #plot temperatures for seven days
 ggplot(data=temps.all[which(temps.all$time<169),], aes(x=time, y =temp, color=treatment))+geom_line()+facet_wrap(.~expt)

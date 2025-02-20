@@ -11,19 +11,17 @@ library(pracma)				# contains sigmoid function
 library(TrenchR)
 library(rvmethod) #gaussian function
 
+#Constructs figures illustrating modelling approach (Figs 1 and 3)
+
+#read in temperature and fitness component data
+temps.all<- read.csv("processed_data/TempTimeSeries.csv")
+PerfDat<- read.csv("processed_data/PerformanceData.csv")
+
+#set up parameters
 tp1=0.9
 pm.ind=4 #run also pm.ind=1
 
-#toggle between desktop (y) and laptop (n)
-desktop<- "y"
-
-#FIT FUNCTION 
-if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
-
-temps.all<- read.csv("TempTimeSeries.csv")
-PerfDat<- read.csv("PerformanceData.csv")
-
+#Functions
 #fedundity TPC
 fec= function(T, a= -69.1, b=12.49, c= -0.34){
   fec=a +b*T +c*T^2
@@ -210,9 +208,6 @@ ddat4<- as.data.frame(cbind(temp=ts, value=damage(ts, c1=0.0001, c2=0.0001, tp=t
 
 #performance with damage
 fdat<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.00001, c2=0.00001, tp=tp1, damage.p=0), type="fecundity", c1=0.00001, c2=0.00001, c3=0, c4=0, group=3.1))
-#fdat2<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.1, c2=0.00001, tp=tp1, damage.p=0), type="fecundity", c1=0.1, c2=0.00001, c3=0, c4=0, group=3.2))
-#fdat3<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.00001, c2=1, tp=tp1, damage.p=0), type="fecundity", c1=0.00001, c2=1, c3=0, c4=0, group=3.3))
-#fdat4<- as.data.frame(cbind(temp=ts, value=perf_wd(ts, c1=0.1, c2=1, tp=tp1, damage.p=0), type="fecundity", c1=0.1, c2=1, c3=0, c4=0, group=3.4))
 
 #repair
 repair<- function(T, c3, c4, Topt=18.4) c3*gaussfunc(T, mu = Topt, sigma = c4)
@@ -235,13 +230,6 @@ pdat$c2= format(pdat$c2, scientific = FALSE)
 #plot
 
 #fecundity
-# f.fig<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=temp, y =value, color=factor(c1), lty=factor(c2), group=group))+
-#   geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+ 
-#   ylab("Performance")+xlab("Temperature (C)") + 
-#   scale_colour_brewer(palette = "Dark2") +
-#   theme(legend.position = "bottom",  legend.box = 'vertical')+theme(legend.spacing.y = unit(3, "pt"))+
-#   labs(colour="d_time", lty="d_temp")
-
 f.fig<- ggplot(data=pdat[which(pdat$type=="fecundity"),], aes(x=temp, y =value, group=group))+
      geom_line(size=1.25)+theme_bw()+ theme(text=element_text(size=14))+ 
      ylab("Performance")+xlab("Temperature (°C)") 
@@ -296,10 +284,6 @@ r.fig= ggplot(data=pdat[which(pdat$type=="repair"),], aes(x=temp, y =value, colo
 #ts<- temps.all[which(temps.all$expt==6 & temps.all$treatment=="AE6"),"temp"]
 ts<- temps.all[which(temps.all$expt==1 & temps.all$treatment=="13"),"temp"]
 ts<- ts[1:100]
-
-#ts<- as.data.frame(cbind(time=1:length(temps), temp=temps, performance=p1.nd))
-#to long format
-#ts.l= gather(ts, time, temp:performance, factor_key=TRUE)
 
 #performance without repair
 fdat0<- as.data.frame(cbind(time=1:length(ts), temp=ts, value=perf.damage(pm=4, T=ts, c1=0.0, c2=0.0000, c3=0, c4=1, scale=1), type="fecundity", c1=0, c2=0.000, c3=0, c4=1, group=3.0))
@@ -361,6 +345,8 @@ pr.fig.ts<- ggplot(data=pdat[which(pdat$type=="perf repair"),], aes(x=time, y =v
 
   
 #---
+# PLOT
+
 layout <- '
 AAA
 BBB
@@ -369,16 +355,12 @@ CCC
 CCC
 '
 
-#plot
-if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
-if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
-
-pdf("Fig1_Function.pdf",height = 9, width = 9)
+pdf("figures/Fig1_Function.pdf",height = 9, width = 9)
 (fec.fig + dr.fig) / (d.fig +r.fig) + 
  plot_annotation(tag_levels = 'A')
 dev.off()
 
-pdf("Fig3_Function.pdf",height = 9, width = 9)
+pdf("figures/Fig3_Function.pdf",height = 9, width = 9)
   t.fig.ts +f.fig.ts +pr.fig.ts +
   plot_layout(design = layout) + plot_annotation(tag_levels = 'A')
 dev.off()

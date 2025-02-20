@@ -13,24 +13,17 @@ library(rvmethod) #gaussian function
 library(ggpubr)
 library(scico)
 
-#toggle between desktop (y) and laptop (n)
-desktop<- "y"
-
-#FIT FUNCTION 
-if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/")
-if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/out/") 
-
-temps.all<- read.csv("TempTimeSeries.csv")
-PerfDat<- read.csv("PerformanceData.csv")
-out<- read.csv("out_fec.csv")
-out.dr<- read.csv("out_dr.csv")
+#read in data and output
+temps.all<- read.csv("processed_data/TempTimeSeries.csv")
+PerfDat<- read.csv("processed_data/PerformanceData.csv")
+out<- read.csv("out/out_fec.csv")
+out.dr<- read.csv("out/out_dr.csv")
 
 #performance metric
 pms<- c("dr", "sur", "long", "fec")
 pm.ind<- 4
 
 #scen: #1. baseline fit scale; 2. fix scale; 3. fit tp; 4. drop c1; 5. drop c2 with floor
-#scens= c(1,5,5,3,5,5,5)   #tp=1: scens= c(1,3,3,3,3,2,2) 
 scens= c(1,1,1,1,1,1,1)
 
 #set up default tp
@@ -53,20 +46,6 @@ PerfDat <- PerfDat[-which(PerfDat$population=="field"),]
 #https://journals.biologists.com/jeb/article/218/14/2289/14375/Daily-temperature-extremes-play-an-important-role
 
 #development rate
-#chinese clones
-dr.c= function(T, Tmax=34.09, a=0.13, b=4.43, c=7.65) {
-  dr=exp(a*T)-exp(b-(Tmax-T)/c)
-  dr[dr<0]<- 0
-  return(dr)
-}
-
-#European clones
-dr.e= function(T, Tmax=32.91, a=0.13, b=4.28, c=7.65){ 
-  d=exp(a*T)-exp(b-(Tmax-T)/c)
-  d[d<0]<- 0
-  return(d)
-}
-
 #use Ma et al 2015
 dr= function(T, Tmax=32.947, a=0.137, b=4.514, c=7.267){ 
   d=exp(a*T)-exp(b-(Tmax-T)/c)
@@ -164,10 +143,11 @@ perf.nodamage<- function(pm, series,scale)  {
 }
 
 #===================
+#FIGURES
+# in Fig 1_3_Conceptual.R:
 #Fig 1. TPCs, model repair, damage
 #Fig 3. model time series
 
-# in Fig 1_Conceptual
 #===================
 #Fig 2. Temperature schematic
 #Expt 1: vary min
@@ -257,13 +237,11 @@ tplot.e6<- ggplot(t6.l, aes(x = day, y = treatment, fill=factor(value))) +
   ylab("Treatment")+xlab("Day")
 
 #write out plot
-if(desktop=="y") setwd("/Users/laurenbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/")
-if(desktop=="n") setwd("/Users/lbuckley/Google Drive/My Drive/Buckley/Work/ThermalHistory/figures/") 
-
-pdf("Fig2_temps.pdf",height = 10, width = 12)
+pdf("figures/Fig2_temps.pdf",height = 10, width = 12)
 print( tplot.e1+tplot.e2+tplot.e3+tplot.e4+tplot.e5+tplot.e6+
          plot_layout(ncol=2) ) #+ plot_annotation(tag_levels = 'A')
 dev.off()
+
 #===================
 #Fig 4. Performance with and without damage
 
@@ -334,7 +312,7 @@ if(expt==7) pplot.e7<- pplot
 }
 
 #write out plot
-pdf("Fig4_performance.pdf",height = 12, width = 12)
+pdf("figures/Fig4_performance.pdf",height = 12, width = 12)
 print( pplot.e1+pplot.e2+pplot.e3+pplot.e4+pplot.e5+pplot.e6+pplot.e7+
          plot_layout(ncol=2, axis_titles = "collect") ) #+ plot_annotation(tag_levels = 'A')
 dev.off()
@@ -447,7 +425,6 @@ if(expt==5){
   
   }
 
-
 if(expt==1) fplot.e1<- fplot
 if(expt==2) fplot.e2<- fplot
 if(expt==3) fplot.e3<- fplot
@@ -458,7 +435,7 @@ if(expt==7) fplot.e7<- fplot
 }
 
 #write out plot
-pdf("Fig5_fecundity.pdf",height = 10, width = 10)
+pdf("figures/Fig5_fecundity.pdf",height = 10, width = 10)
 print( fplot.e1+fplot.e2+fplot.e3+fplot.e4+fplot.e5+fplot.e6+fplot.e7+lplot+
          plot_layout(ncol=2, axis_titles = "collect") ) #+ plot_annotation(tag_levels = 'A')
 dev.off()
@@ -604,7 +581,7 @@ for(expt in c(1:5,7)){
 }
 
 #write out plot
-pdf("Fig6_dev_rate.pdf",height = 10, width = 10)
+pdf("figures/Fig6_dev_rate.pdf",height = 10, width = 10)
 print( fplot.e1+fplot.e2+fplot.e3+fplot.e4+fplot.e5+fplot.e7+lplot+
          plot_layout(ncol=2, axis_titles = "collect") ) #+ plot_annotation(tag_levels = 'A')
 dev.off()
