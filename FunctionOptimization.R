@@ -367,14 +367,37 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   scen.agg<- aggregate(scen_top[,c("d_time","d_temp","r_mag","r_breadth","Tp","Tr")], by=list(scen_top$expt), FUN="mean")
   
   #scale colors within variables
-  y = ((x / 255) * (max_value - min_value)) + min_value
+  cols=grey(seq(0.3, 1, length = 201))
   
-  gs<- function(x){
-    ((x / 255) * (max_value - min_value)) + min_value
-  }
+   gs<- function(x){
+    (x-min(x))/(max(x) - min(x))*200
+    }
   
-  d_time.gs<- scen.agg$d
+   gray<- function(x){
+     paste("background-color:", cols[round(x)], sep=" ")
+   }
+   
+   gc <- scen.agg[,-1]
+   gc$d_time <- gs(scen.agg$d_time)
+   gc$d_temp<- gs(scen.agg$d_temp)
+   gc$r_mag<- gs(scen.agg$r_mag)
+   gc$r_breadth<- gs(scen.agg$r_breadth)
+   gc$Tp<- gs(scen.agg$Tp)
+   gc$Tr<- gs(scen.agg$Tr)
+  gc<- as.matrix(gc)
+   
+  gc<- apply(gc, MARGIN=c(1,2), FUN=gray)
   
+  scen1<- scen_top[scen_top$scenario==1,c(2,4:11)]
+  names(scen1) <- c("expt","d \\textsubscript{time}","d~temp~","r_mag","r_breadth","c","Tr","scale","sse")
+  
+  gc1<- scen1
+  gc1[]<-""
+  gc1[,2:7]<-gc
+  gc1<- as.matrix(gc1)
+  
+#  https://stackoverflow.com/questions/43322881/how-can-i-subscript-names-in-a-table-from-kable
+   htmlTable(scen1, css.cell = gc1, rnames = FALSE)
   
   #---------------------------
   #library DT
