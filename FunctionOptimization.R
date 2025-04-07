@@ -352,5 +352,46 @@ if(length(unique(fecs[fecs$expt==expt,"treatment"]))>0){
   out_file <- paste("out/scen1_", pms[pm.ind], ".csv", sep="")
   write.csv(scen.top, out_file)
   
+#-----------------------
+# Plot table with shading  
+
+  #make table
+  scen_top<- read.csv("out/out_fec.csv")  
   
+  #mean across scenarios
+  tpc.agg.f <- scen_top %>% 
+    group_by(expt) %>% 
+    dplyr::summarise(d_time = mean(value, na.rm = TRUE),
+                     se = sd(value, na.rm = TRUE)/length(value) )
+  
+  scen.agg<- aggregate(scen_top[,c("d_time","d_temp","r_mag","r_breadth","Tp","Tr")], by=list(scen_top$expt), FUN="mean")
+  
+  #scale colors within variables
+  y = ((x / 255) * (max_value - min_value)) + min_value
+  
+  gs<- function(x){
+    ((x / 255) * (max_value - min_value)) + min_value
+  }
+  
+  d_time.gs<- scen.agg$d
+  
+  
+  #---------------------------
+  #library DT
+  #https://stackoverflow.com/questions/31323885/how-to-color-specific-cells-in-a-data-frame-table-in-r
+  
+  library("htmlTable")
+  
+  x <- head(cars)
+  
+  ## indices defining where the styles go
+  where <- rbind(c(2,2), c(2,1), c(5,2))
+  style <- c('background-color: red; color: white;',
+             'border: solid 1px;',
+             'font-weight: 900; color: blue;')
+  
+  css.cell <- matrix('', nrow(x), ncol(x))
+  css.cell[where] <- style  
+      
+  htmlTable(head(cars), css.cell = css.cell)
   

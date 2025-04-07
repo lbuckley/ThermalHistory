@@ -202,7 +202,8 @@ temps.l$elab<- elabs[5]
 #plot
 tplot.e5<- ggplot(temps.l, aes(x = day, y = treat.nh, fill=factor(value))) +
   geom_tile()+labs(title="E) expt 5. hot days", fill="day type")+
-  theme_bw(base_size=16)+theme(legend.position = "right")+ylab("Treatment")+xlab("Day")
+  theme_bw(base_size=16)+theme(legend.position = "right")+ylab("Treatment")+xlab("Day")+
+  scale_x_continuous(breaks = c(3, 6, 9))
 
 #-------------
 #Expt 6: vary length of heatwave and timing 
