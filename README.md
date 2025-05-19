@@ -8,7 +8,7 @@ This README.txt file was updated on February 19, 2025 by Lauren Buckley
 
 ## A. Paper associated with this archive
 
-Citation: Buckley LB et al. 2025.
+Citation: Buckley LB, Huey RB, and Ma C-S. 2025.
 How damage, recovery, and repair alter the fitness impacts of thermal stress.
 Integrative and Comparative Biology
 
