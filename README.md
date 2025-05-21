@@ -1,5 +1,7 @@
 # How damage, recovery, and repair alter the fitness impacts of thermal stress
 
+[![DOI](https://zenodo.org/badge/290842716.svg)](https://doi.org/10.5281/zenodo.15466637)
+
 Analysis of how thermal history influences performance
 
 # GENERAL INFORMATION
